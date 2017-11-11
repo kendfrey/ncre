@@ -1,0 +1,31 @@
+{
+    "extends": [
+        "tslint:all"
+    ],
+    "jsRules": {},
+    "rules": {
+        "indent": [true, "tabs"],
+        "one-line": false,
+        "max-classes-per-file": false,
+        "interface-name": false,
+        "linebreak-style": false,
+        "no-parameter-properties": false,
+        "typedef": [
+            true,
+            "call-signature",
+            "arrow-call-signature",
+            "parameter",
+            "arrow-parameter",
+            "property-declaration",
+            "object-destructuring",
+            "array-destructuring"
+        ],
+        "member-ordering": false,
+        "no-non-null-assertion": false,
+        "newline-before-return": false,
+        "prefer-function-over-method": [true, "allow-public", "allow-protected"],
+        "switch-final-break": [true, "always"],
+        "completed-docs": false
+    },
+    "rulesDirectory": []
+}
