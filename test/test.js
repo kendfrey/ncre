@@ -22,6 +22,7 @@ describe("Regex", () =>
 		testMatch("lazy repetition - *?", "a*?b*?", "aabbb");
 		testMatch("lazy repetition - +?", "a+?b+?", "aabbb");
 		testMatch("non-capturing groups - (?:)", "a(?:b(?:c)?)*", "abbccb");
+		testMatch("escaping - \\", "a\\+", "aaa+");
 	});
 });
 

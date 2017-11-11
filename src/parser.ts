@@ -74,7 +74,11 @@ export class Parser
 		}
 
 		let atom: Expr.Expression;
-		if (this.scanner.consume("(?:") !== undefined)
+		if (this.scanner.consume("\\") !== undefined)
+		{
+			atom = this.parseChar();
+		}
+		else if (this.scanner.consume("(?:") !== undefined)
 		{
 			atom = this.parseSeq();
 			if (this.scanner.consume(")") === undefined)
@@ -84,12 +88,7 @@ export class Parser
 		}
 		else
 		{
-			const char = this.scanner.consume(/[^]/);
-			if (char === undefined)
-			{
-				throw new Error(`Internal error NO_CHAR at position ${this.scanner.index}.`);
-			}
-			atom = new Expr.Character(char);
+			atom = this.parseChar();
 		}
 
 		const repetition = this.scanner.consume(/[*+?]/);
@@ -114,5 +113,15 @@ export class Parser
 		}
 
 		return atom;
+	}
+
+	private parseChar(): Expr.Character
+	{
+		const char = this.scanner.consume(/[^]/);
+		if (char === undefined)
+		{
+			throw new Error(`Internal error NO_CHAR at position ${this.scanner.index}.`);
+		}
+		return new Expr.Character(char);
 	}
 }
