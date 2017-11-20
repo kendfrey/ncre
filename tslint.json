@@ -15,7 +15,6 @@
             "call-signature",
             "arrow-call-signature",
             "parameter",
-            "arrow-parameter",
             "property-declaration",
             "object-destructuring",
             "array-destructuring"
@@ -25,7 +24,9 @@
         "newline-before-return": false,
         "prefer-function-over-method": [true, "allow-public", "allow-protected"],
         "switch-final-break": [true, "always"],
-        "completed-docs": false
+        "completed-docs": false,
+        "arrow-parens": false,
+        "only-arrow-functions": false
     },
     "rulesDirectory": []
 }

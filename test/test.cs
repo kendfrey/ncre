@@ -7,9 +7,15 @@ namespace Ncre
 {
 	class Test
 	{
+		public Task<object> Parse(dynamic data)
+		{
+			return Task.FromResult<object>(new Regex(data.regex));
+		}
+
 		public Task<object> Match(dynamic data)
 		{
-			return Task.FromResult<object>(new MatchDto(Regex.Match(data.input, data.regex)));
+			var regex = new Regex(data.regex);
+			return Task.FromResult<object>(new MatchDto(regex, regex.Match(data.input)));
 		}
 	}
 
@@ -30,24 +36,41 @@ namespace Ncre
 	class GroupDto : CaptureDto
 	{
 		Group group;
-		public GroupDto(Group group) : base(group)
+		public GroupDto(Group group, string name = null) : base(group)
 		{
 			this.group = group;
+			this.name = name ?? group.Name;
 		}
 
 		public IEnumerable<CaptureDto> captures => group.Captures.Cast<Capture>().Select(c => new CaptureDto(c));
-		public string name => group.Name;
+		public string name { get; set; }
 		public bool success => group.Success;
 	}
 
 	class MatchDto : GroupDto
 	{
+		Regex regex;
 		Match match;
-		public MatchDto(Match match) : base(match)
+		public MatchDto(Regex regex, Match match) : base(match)
 		{
+			this.regex = regex;
 			this.match = match;
 		}
 
-		public IEnumerable<CaptureDto> groups => match.Groups.Cast<Group>().Select(g => new GroupDto(g));
+		public IEnumerable<GroupDto> groups
+		{
+			get
+			{
+				if (match.Success)
+				{
+					// This is a workaround for https://connect.microsoft.com/VisualStudio/feedback/details/3144058
+					return regex.GetGroupNames().Select(n => new GroupDto(match.Groups[n], n));
+				}
+				else
+				{
+					return match.Groups.Cast<Group>().Select(g => new GroupDto(g));
+				}
+			}
+		}
 	}
 }

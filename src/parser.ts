@@ -1,15 +1,17 @@
 import * as Expr from "./expression";
+import { CaptureGroup } from "./state";
 
 class Scanner
 {
 	public index = 0;
+	public token: string;
 
 	public constructor(private readonly str: string)
 	{
 
 	}
 
-	public peek(pattern: RegExp | string): string | undefined
+	public peek(pattern: RegExp | string): boolean
 	{
 		if (pattern instanceof RegExp)
 		{
@@ -18,47 +20,100 @@ class Scanner
 			const match = this.str.match(regex);
 			if (match !== null)
 			{
-				return match[0];
+				this.token = match[0];
+				return true;
 			}
 		}
 		else
 		{
 			if (this.str.startsWith(pattern, this.index))
 			{
-				return pattern;
+				this.token = pattern;
+				return true;
 			}
 		}
+		return false;
 	}
 
-	public consume(pattern: RegExp | string): string | undefined
+	public consume(pattern: RegExp | string): boolean
 	{
-		const result = this.peek(pattern);
-		if (result !== undefined)
+		if (this.peek(pattern))
 		{
-			this.index += result.length;
+			this.index += this.token.length;
+			return true;
 		}
-		return result;
+		return false;
 	}
 
-	public get eos(): boolean
+	public expect(pattern: RegExp | string, description?: string): void
 	{
-		return this.index >= this.str.length;
+		if (!this.consume(pattern))
+		{
+			let expected;
+			if (description !== undefined)
+			{
+				expected = description;
+			}
+			else if (pattern instanceof RegExp)
+			{
+				expected = pattern.toString();
+			}
+			else
+			{
+				expected = `"${pattern}"`;
+			}
+			throw new SyntaxError(`Expected ${expected} at position ${this.index}.`);
+		}
 	}
+
+	public unexpect(pattern: RegExp | string, description?: string): void
+	{
+		if (this.peek(pattern))
+		{
+			throw new SyntaxError(`Unexpected "${this.token}" at position ${this.index}.`);
+		}
+	}
+}
+
+export interface ParseResult
+{
+	sequence: Expr.Sequence;
+	groups: Map<string, CaptureGroup>;
 }
 
 export class Parser
 {
 	private scanner: Scanner;
+	private curGroupIndex = 1;
+	private groups = new Map<string, CaptureGroup>();
 
 	public constructor(str: string)
 	{
 		this.scanner = new Scanner(str);
 	}
 
-	public parseSeq(): Expr.Sequence
+	private getGroup(name: string): CaptureGroup
+	{
+		let group = this.groups.get(name);
+		if (group === undefined)
+		{
+			group = new CaptureGroup(name);
+			this.groups.set(name, group);
+		}
+		return group;
+	}
+
+	public parse(): ParseResult
+	{
+		const sequence = this.parseSeq();
+		this.scanner.unexpect(/[^]/);
+		return { sequence, groups: this.groups };
+	}
+
+	private parseSeq(): Expr.Sequence
 	{
 		const atoms = [];
-		while (this.scanner.peek(/\)|$/) === undefined)
+		while (!this.scanner.peek(/\)|$/))
 		{
 			atoms.push(this.parseAtom());
 		}
@@ -67,34 +122,54 @@ export class Parser
 
 	private parseAtom(): Expr.Expression
 	{
-		const invalid = this.scanner.peek(/[*+?)]/);
-		if (invalid !== undefined)
-		{
-			throw new SyntaxError(`Unexpected "${invalid}" at position ${this.scanner.index}.`);
-		}
+		this.scanner.unexpect(/[*+?)]/);
 
 		let atom: Expr.Expression;
-		if (this.scanner.consume("\\") !== undefined)
+		if (this.scanner.consume("\\"))
 		{
+			// Parse escape sequence
 			atom = this.parseChar();
 		}
-		else if (this.scanner.consume("(?:") !== undefined)
+		else if (this.scanner.consume("(?:"))
 		{
+			// Parse non-capturing group
 			atom = this.parseSeq();
-			if (this.scanner.consume(")") === undefined)
+			this.scanner.expect(")");
+		}
+		else if (this.scanner.consume(/\(\?[<']/))
+		{
+			// Parse named capturing group
+			const endDelim = this.scanner.token.endsWith("<") ? ">" : "'";
+			this.scanner.expect(/[_A-Za-z]\w*|\d+/, "group name or index");
+			const name = this.scanner.token;
+			if (name.startsWith("0"))
 			{
-				throw new SyntaxError(`Expected ")" at position ${this.scanner.index}.`);
+				throw new SyntaxError(`Group index cannot begin with 0. Invalid group name at position ${this.scanner.index}.`);
 			}
+			this.scanner.expect(endDelim);
+			atom = new Expr.Group(this.parseSeq(), this.getGroup(name));
+			this.scanner.expect(")");
+		}
+		else if (this.scanner.consume("("))
+		{
+			// Parse capturing group
+			const group = this.getGroup(this.curGroupIndex.toString());
+			this.curGroupIndex++;
+			atom = new Expr.Group(this.parseSeq(), group);
+			this.scanner.expect(")");
 		}
 		else
 		{
+			// Parse literal character
 			atom = this.parseChar();
 		}
 
-		const repetition = this.scanner.consume(/[*+?]/);
-		if (repetition !== undefined)
+		// Parse repetition modifiers
+		if (this.scanner.consume(/[*+?]/))
 		{
-			const lazy = Boolean(this.scanner.consume("?"));
+			const repetition = this.scanner.token;
+			// Parse lazy modifier
+			const lazy = this.scanner.consume("?");
 			switch (repetition)
 			{
 				case "*":
@@ -117,11 +192,10 @@ export class Parser
 
 	private parseChar(): Expr.Character
 	{
-		const char = this.scanner.consume(/[^]/);
-		if (char === undefined)
+		if (!this.scanner.consume(/[^]/))
 		{
 			throw new Error(`Internal error NO_CHAR at position ${this.scanner.index}.`);
 		}
-		return new Expr.Character(char);
+		return new Expr.Character(this.scanner.token);
 	}
 }

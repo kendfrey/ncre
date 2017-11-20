@@ -1,8 +1,14 @@
-import { State } from "./state";
+import { CaptureGroup, CaptureValue, State } from "./state";
 
 export interface Expression
 {
+	// Tokens represent the "state" of an expression.
+	// Each successful candidate match returns a token which can later be passed to backtrack if backtracking is required.
+
+	// This tries to find the first possible match and returns a token if successful.
 	match(state: State): object | undefined;
+
+	// This takes a token and tries to find the next possible match by backtracking.
 	backtrack(state: State, token: object): object | undefined;
 }
 
@@ -21,10 +27,10 @@ export class Sequence implements Expression
 	public backtrack(state: State, tokens: object[]): object[] | undefined
 	{
 		// Backtrack until a match is found.
-		const index = this.backtrackInternal(state, tokens, tokens.length);
+		const index = this.backtrackInternal(state, tokens, tokens.length - 1);
 		if (index !== undefined)
 		{
-			return this.matchInternal(state, tokens, index);
+			return this.matchInternal(state, tokens, index + 1);
 		}
 		else
 		{
@@ -174,6 +180,7 @@ export class Repetition implements Expression
 
 	private backtrackInternal(state: State, tokens: object[]): boolean
 	{
+		const includeEmpty = !this.lazy && this.min <= 0 && tokens.length > 0;
 		// Backtrack until a match is found.
 		while (tokens.length > 0)
 		{
@@ -186,8 +193,8 @@ export class Repetition implements Expression
 				return true;
 			}
 		}
-		// If no match was found, the backtrack failed.
-		return false;
+		// If no match was found, return true if 0 repetitions is valid, false otherwise.
+		return includeEmpty;
 	}
 }
 
@@ -211,9 +218,52 @@ export class Character implements Expression
 		}
 	}
 
-	public backtrack(state: State): object | undefined
+	public backtrack(state: State, token: object): object | undefined
 	{
 		state.index--;
 		return undefined;
+	}
+}
+
+export class Group implements Expression
+{
+	public constructor(private readonly atom: Sequence, private readonly group: CaptureGroup)
+	{
+
+	}
+
+	public match(state: State): { start: number; token: object[] } | undefined
+	{
+		const start = state.index;
+		const token = this.atom.match(state);
+		if (token !== undefined)
+		{
+			// If a match is found, store it as a capture.
+			state.groups.get(this.group)!.push(new CaptureValue(state.str.substring(start, state.index), start));
+			return { start, token };
+		}
+		else
+		{
+			return undefined;
+		}
+	}
+
+	public backtrack(state: State, { start, token }: { start: number; token: object[] })
+		: { start: number; token: object[] } | undefined
+	{
+		// Remove the previous capture.
+		state.groups.get(this.group)!.pop();
+
+		const newToken = this.atom.backtrack(state, token);
+		if (newToken !== undefined)
+		{
+			// If a match is found, store it as a capture.
+			state.groups.get(this.group)!.push(new CaptureValue(state.str.substring(start, state.index), start));
+			return { start, token: newToken };
+		}
+		else
+		{
+			return undefined;
+		}
 	}
 }
