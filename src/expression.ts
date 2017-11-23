@@ -200,14 +200,14 @@ export class Repetition implements Expression
 
 export class Character implements Expression
 {
-	public constructor(private readonly char: string)
+	public constructor(private readonly filter: (character: string) => boolean)
 	{
 
 	}
 
 	public match(state: State): object | undefined
 	{
-		if (state.str[state.index] === this.char)
+		if (this.filter(state.str[state.index]))
 		{
 			state.index++;
 			return {};

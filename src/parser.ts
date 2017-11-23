@@ -105,12 +105,12 @@ export class Parser
 
 	public parse(): ParseResult
 	{
-		const sequence = this.parseSeq();
+		const sequence = this.parseSequence();
 		this.scanner.unexpect(/[^]/);
 		return { sequence, groups: this.groups };
 	}
 
-	private parseSeq(): Expr.Sequence
+	private parseSequence(): Expr.Sequence
 	{
 		const atoms = [];
 		while (!this.scanner.peek(/\)|$/))
@@ -128,12 +128,12 @@ export class Parser
 		if (this.scanner.consume("\\"))
 		{
 			// Parse escape sequence
-			atom = this.parseChar();
+			atom = this.parseLiteralCharacter();
 		}
 		else if (this.scanner.consume("(?:"))
 		{
 			// Parse non-capturing group
-			atom = this.parseSeq();
+			atom = this.parseSequence();
 			this.scanner.expect(")");
 		}
 		else if (this.scanner.consume(/\(\?[<']/))
@@ -147,7 +147,7 @@ export class Parser
 				throw new SyntaxError(`Group index cannot begin with 0. Invalid group name at position ${this.scanner.index}.`);
 			}
 			this.scanner.expect(endDelim);
-			atom = new Expr.Group(this.parseSeq(), this.getGroup(name));
+			atom = new Expr.Group(this.parseSequence(), this.getGroup(name));
 			this.scanner.expect(")");
 		}
 		else if (this.scanner.consume("("))
@@ -155,13 +155,13 @@ export class Parser
 			// Parse capturing group
 			const group = this.getGroup(this.curGroupIndex.toString());
 			this.curGroupIndex++;
-			atom = new Expr.Group(this.parseSeq(), group);
+			atom = new Expr.Group(this.parseSequence(), group);
 			this.scanner.expect(")");
 		}
 		else
 		{
 			// Parse literal character
-			atom = this.parseChar();
+			atom = this.parseLiteralCharacter();
 		}
 
 		// Parse repetition modifiers
@@ -190,12 +190,24 @@ export class Parser
 		return atom;
 	}
 
-	private parseChar(): Expr.Character
+	private parseLiteralCharacter(): Expr.Character
 	{
 		if (!this.scanner.consume(/[^]/))
 		{
 			throw new Error(`Internal error NO_CHAR at position ${this.scanner.index}.`);
 		}
-		return new Expr.Character(this.scanner.token);
+		return new Expr.Character(literal(this.scanner.token, false));
+
+		function literal(character: string, caseInsensitive: boolean): (character: string) => boolean
+		{
+			if (caseInsensitive)
+			{
+				return (c: string): boolean => c.toLowerCase() === character.toLowerCase();
+			}
+			else
+			{
+				return (c: string): boolean => c === character;
+			}
+		}
 	}
 }
