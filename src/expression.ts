@@ -114,14 +114,7 @@ export class Repetition implements Expression
 				return tokens;
 			}
 		}
-		if (this.backtrackInternal(state, tokens))
-		{
-			return tokens;
-		}
-		else
-		{
-			return undefined;
-		}
+		return this.backtrackInternal(state, tokens);
 	}
 
 	private matchInternal(state: State, tokens: object[]): object[] | undefined
@@ -141,10 +134,7 @@ export class Repetition implements Expression
 				else
 				{
 					// Try to backtrack to another match.
-					if (!this.backtrackInternal(state, tokens))
-					{
-						return undefined;
-					}
+					return this.backtrackInternal(state, tokens);
 				}
 			}
 		}
@@ -168,19 +158,15 @@ export class Repetition implements Expression
 				else
 				{
 					// Try to backtrack to another match.
-					if (!this.backtrackInternal(state, tokens))
-					{
-						return undefined;
-					}
+					return this.backtrackInternal(state, tokens);
 				}
 			}
 		}
 		return tokens;
 	}
 
-	private backtrackInternal(state: State, tokens: object[]): boolean
+	private backtrackInternal(state: State, tokens: object[]): object[] | undefined
 	{
-		const includeEmpty = !this.lazy && this.min <= 0 && tokens.length > 0;
 		// Backtrack until a match is found.
 		while (tokens.length > 0)
 		{
@@ -190,11 +176,15 @@ export class Repetition implements Expression
 			{
 				// If it succeeded, the backtrack succeeded.
 				tokens.push(token);
-				return true;
+				return this.matchInternal(state, tokens);
+			}
+			else if (!this.lazy && tokens.length >= this.min)
+			{
+				// If it's greedy, backtrack to one less repetition.
+				return tokens;
 			}
 		}
-		// If no match was found, return true if 0 repetitions is valid, false otherwise.
-		return includeEmpty;
+		return undefined;
 	}
 }
 
@@ -207,7 +197,7 @@ export class Character implements Expression
 
 	public match(state: State): object | undefined
 	{
-		if (this.filter(state.str[state.index]))
+		if (state.index < state.str.length && this.filter(state.str[state.index]))
 		{
 			state.index++;
 			return {};

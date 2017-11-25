@@ -3,14 +3,32 @@ import { Parser } from "./parser";
 import { Capture, Group, Match } from "./result";
 import { CaptureGroup, State } from "./state";
 
+export interface RegexOptions
+{
+	flags?: string;
+}
+
 export class Regex
 {
 	private ast: Sequence;
 	private groups: Map<string, CaptureGroup>;
 
-	public constructor(regex: string)
+	public constructor(regex: string, options: RegexOptions = {})
 	{
-		({ sequence: this.ast, groups: this.groups } = new Parser(regex).parse());
+		let flags = options.flags;
+		if (flags !== undefined)
+		{
+			const invalidFlag = Parser.findInvalidFlag(flags);
+			if (invalidFlag !== undefined)
+			{
+				throw new SyntaxError(`Invalid flag "${invalidFlag}" in regex options.`);
+			}
+		}
+		else
+		{
+			flags = "";
+		}
+		({ sequence: this.ast, groups: this.groups } = new Parser(regex, flags).parse());
 	}
 
 	public match(input: string): Match

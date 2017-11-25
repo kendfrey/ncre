@@ -24,6 +24,8 @@ describe("Regex", () =>
 		testParseError("invalid group name", "(?<1a>)");
 		testParse("underscored group name", "(?<_1a>)");
 		testParseError("zero group number", "(?<0>)");
+		testParseError("invalid regex flag", "(?a)");
+		testParseError("missing regex flags", "(?)");
 	});
 	describe("match()", () =>
 	{
@@ -44,6 +46,11 @@ describe("Regex", () =>
 		testMatch("case sensitive named capturing groups", "(?<A>a)+(?<a>b)", "aab");
 		testMatch("numbered capturing groups", "(?<3>a)+(b)", "aab");
 		testMatch("duplicate numbered capturing groups", "(a)+(?<1>b)", "aab");
+		testMatch("inline flags - (?)", "a(?i)a*(?i-i)a", "AaAaA");
+		testMatch("scoped inline flags - (?)", "(?:a(?i)a*)a", "AaAaA");
+		testMatch("scoped flags - (?:)", "a(?i:a*)a", "AaAaA");
+		testMatch("case sensitivity", "a", "Aa");
+		testMatch("case insensitivity", "a", "Aa", { flags: "i" });
 	});
 });
 
@@ -92,8 +99,8 @@ function testParse(feature, regex, only)
 {
 	(only ? it.only : it)(feature, () =>
 	{
-		assert.doesNotThrow(() => new ncre.Regex(regex));
-		assert.doesNotThrow(() => dotnet.parse({ regex }));
+		assert.doesNotThrow(() => new ncre.Regex(regex), "NCRE parsing threw an error.");
+		assert.doesNotThrow(() => dotnet.parse({ regex }), ".NET parsing threw an error.");
 	});
 }
 
@@ -101,19 +108,20 @@ function testParseError(feature, regex, only)
 {
 	(only ? it.only : it)(feature, () =>
 	{
-		assert.throws(() => new ncre.Regex(regex));
-		assert.throws(() => dotnet.parse({ regex }));
+		assert.throws(() => new ncre.Regex(regex), "NCRE parsing did not throw an error.");
+		assert.throws(() => dotnet.parse({ regex }), ".NET parsing did not throw an error.");
 	});
 }
 
-function testMatch(feature, regex, input, only)
+function testMatch(feature, regex, input, options, only)
 {
+	options = options || {};
 	(only ? it.only : it)(feature, () =>
 	{
-		const actual = new ncre.Regex(regex).match(input);
-		const expected = dotnet.match({ regex, input }, true);
+		const actual = new ncre.Regex(regex, options).match(input);
+		const expected = dotnet.match({ regex, input, options }, true);
 		// Edge deserializes an array, so convert it to a Map.
 		expected.groups = new Map(expected.groups.map(g => [g.name, g]));
-		assert.deepEqual(actual, expected)
+		assert.deepEqual(actual, expected, "Matches are not equal.")
 	});
 }

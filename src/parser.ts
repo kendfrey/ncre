@@ -75,6 +75,53 @@ class Scanner
 	}
 }
 
+class Flags
+{
+	private stack: Array<Map<string, boolean>>;
+
+	public constructor(setFlags: string)
+	{
+		this.stack = [];
+		this.push();
+		this.set(setFlags, "");
+	}
+
+	public has(flag: string): boolean
+	{
+		for (let i = this.stack.length - 1; i >= 0; i--)
+		{
+			const enabled = this.stack[i].get(flag);
+			if (enabled !== undefined)
+			{
+				return enabled;
+			}
+		}
+		return false;
+	}
+
+	public set(setFlags: string, clearFlags: string): void
+	{
+		for (const flag of setFlags.toLowerCase())
+		{
+			this.stack[this.stack.length - 1].set(flag, true);
+		}
+		for (const flag of clearFlags.toLowerCase())
+		{
+			this.stack[this.stack.length - 1].set(flag, false);
+		}
+	}
+
+	public push(): void
+	{
+		this.stack.push(new Map());
+	}
+
+	public pop(): void
+	{
+		this.stack.pop();
+	}
+}
+
 export interface ParseResult
 {
 	sequence: Expr.Sequence;
@@ -86,10 +133,12 @@ export class Parser
 	private scanner: Scanner;
 	private curGroupIndex = 1;
 	private groups = new Map<string, CaptureGroup>();
+	private flags: Flags;
 
-	public constructor(str: string)
+	public constructor(regex: string, flags: string)
 	{
-		this.scanner = new Scanner(str);
+		this.scanner = new Scanner(regex);
+		this.flags = new Flags(flags);
 	}
 
 	private getGroup(name: string): CaptureGroup
@@ -112,11 +161,13 @@ export class Parser
 
 	private parseSequence(): Expr.Sequence
 	{
+		this.flags.push();
 		const atoms = [];
 		while (!this.scanner.peek(/\)|$/))
 		{
 			atoms.push(this.parseAtom());
 		}
+		this.flags.pop();
 		return new Expr.Sequence(atoms);
 	}
 
@@ -149,6 +200,36 @@ export class Parser
 			this.scanner.expect(endDelim);
 			atom = new Expr.Group(this.parseSequence(), this.getGroup(name));
 			this.scanner.expect(")");
+		}
+		else if (this.scanner.consume("(?"))
+		{
+			// Parse flag modifiers
+			this.scanner.expect(/[A-Za-z]+|(?=-)/, "flags specifier");
+			const setFlags = this.scanner.token;
+			this.cleckFlags(setFlags);
+			let clearFlags = "";
+			if (this.scanner.consume("-"))
+			{
+				this.scanner.expect(/[A-Za-z]*/, "flags specifier");
+				clearFlags = this.scanner.token;
+				this.cleckFlags(clearFlags);
+			}
+			if (this.scanner.consume(":"))
+			{
+				// Parse scoped flags - (?flags:regex)
+				this.flags.push();
+				this.flags.set(setFlags, clearFlags);
+				atom = this.parseSequence();
+				this.scanner.expect(")");
+				this.flags.pop();
+			}
+			else
+			{
+				// Parse normal flags modifier - (?flags)
+				this.scanner.expect(")");
+				this.flags.set(setFlags, clearFlags);
+				return this.parseAtom(); // This just short-circuits to parsing the next atom.
+			}
 		}
 		else if (this.scanner.consume("("))
 		{
@@ -196,11 +277,11 @@ export class Parser
 		{
 			throw new Error(`Internal error NO_CHAR at position ${this.scanner.index}.`);
 		}
-		return new Expr.Character(literal(this.scanner.token, false));
+		return new Expr.Character(literal(this.scanner.token, this.flags.has("i")));
 
-		function literal(character: string, caseInsensitive: boolean): (character: string) => boolean
+		function literal(character: string, ignoreCase: boolean): (character: string) => boolean
 		{
-			if (caseInsensitive)
+			if (ignoreCase)
 			{
 				return (c: string): boolean => c.toLowerCase() === character.toLowerCase();
 			}
@@ -208,6 +289,25 @@ export class Parser
 			{
 				return (c: string): boolean => c === character;
 			}
+		}
+	}
+
+	private cleckFlags(flags: string): void
+	{
+		const invalidFlag = Parser.findInvalidFlag(flags);
+		if (invalidFlag !== undefined)
+		{
+			const flagPosition = this.scanner.index - flags.length + flags.indexOf(invalidFlag);
+			throw new SyntaxError(`Invalid flag "${invalidFlag}" at position ${flagPosition}.`);
+		}
+	}
+
+	public static findInvalidFlag(flags: string): string | undefined
+	{
+		const match = flags.match(/[^i]/i);
+		if (match !== null)
+		{
+			return match[0];
 		}
 	}
 }

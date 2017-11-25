@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -14,7 +15,23 @@ namespace Ncre
 
 		public Task<object> Match(dynamic data)
 		{
-			var regex = new Regex(data.regex);
+			RegexOptions options = RegexOptions.None;
+			object flags;
+			if ((data.options as IDictionary<string, object>).TryGetValue("flags", out flags))
+			{
+				foreach (char flag in (flags as string).ToLower())
+				{
+					switch (flag)
+					{
+						case 'i':
+							options |= RegexOptions.IgnoreCase;
+							break;
+						default:
+							throw new ArgumentException($"Invalid flag {flag}.", "options");
+					}
+				}
+			}
+			var regex = new Regex(data.regex, options);
 			return Task.FromResult<object>(new MatchDto(regex, regex.Match(data.input)));
 		}
 	}
