@@ -128,6 +128,57 @@ export interface ParseResult
 	groups: Map<string, CaptureGroup>;
 }
 
+type Predicate = (character: string) => boolean;
+
+const predicate =
+{
+	literal(character: string): Predicate
+	{
+		return (c: string): boolean => c === character;
+	},
+	ignoreCase(basePredicate: Predicate): Predicate
+	{
+		return (c: string): boolean => basePredicate(c.toLowerCase()) || basePredicate(c.toUpperCase());
+	},
+	class(predicates: Predicate[]): Predicate
+	{
+		return (c: string): boolean => predicates.some(p => p(c));
+	},
+	negate(basePredicate: Predicate): Predicate
+	{
+		return (c: string): boolean => !basePredicate(c);
+	},
+	range(startCharCode: number, endCharCode: number): Predicate
+	{
+		return (c: string): boolean => c.charCodeAt(0) >= startCharCode && c.charCodeAt(0) <= endCharCode;
+	},
+	subtract(basePredicate: Predicate, subtractPredicate: Predicate): Predicate
+	{
+		return (c: string): boolean => basePredicate(c) && !subtractPredicate(c);
+	},
+};
+
+const characterClass =
+{
+	digit: predicate.range("0".charCodeAt(0), "9".charCodeAt(0)),
+	word: predicate.ignoreCase(predicate.class
+	([
+		predicate.range("0".charCodeAt(0), "9".charCodeAt(0)),
+		predicate.range("a".charCodeAt(0), "a".charCodeAt(0)),
+		predicate.literal("_"),
+	])),
+	whitespace: predicate.class
+	([
+		predicate.literal(" "),
+		predicate.literal("\t"),
+		predicate.literal("\r"),
+		predicate.literal("\n"),
+		predicate.literal("\f"),
+		predicate.literal("\v"),
+		predicate.literal("\u0085"),
+	]),
+};
+
 export class Parser
 {
 	private scanner: Scanner;
@@ -179,7 +230,7 @@ export class Parser
 		if (this.scanner.consume("\\"))
 		{
 			// Parse escape sequence
-			atom = this.parseLiteralCharacter();
+			atom = this.parseEscape();
 		}
 		else if (this.scanner.consume("(?:"))
 		{
@@ -206,13 +257,13 @@ export class Parser
 			// Parse flag modifiers
 			this.scanner.expect(/[A-Za-z]+|(?=-)/, "flags specifier");
 			const setFlags = this.scanner.token;
-			this.cleckFlags(setFlags);
+			this.checkFlags(setFlags);
 			let clearFlags = "";
 			if (this.scanner.consume("-"))
 			{
 				this.scanner.expect(/[A-Za-z]*/, "flags specifier");
 				clearFlags = this.scanner.token;
-				this.cleckFlags(clearFlags);
+				this.checkFlags(clearFlags);
 			}
 			if (this.scanner.consume(":"))
 			{
@@ -238,6 +289,12 @@ export class Parser
 			this.curGroupIndex++;
 			atom = new Expr.Group(this.parseSequence(), group);
 			this.scanner.expect(")");
+		}
+		else if (this.scanner.consume("["))
+		{
+			// Parse character class
+			atom = new Expr.Character(this.parseClass());
+			this.scanner.expect("]");
 		}
 		else
 		{
@@ -277,22 +334,231 @@ export class Parser
 		{
 			throw new Error(`Internal error NO_CHAR at position ${this.scanner.index}.`);
 		}
-		return new Expr.Character(literal(this.scanner.token, this.flags.has("i")));
-
-		function literal(character: string, ignoreCase: boolean): (character: string) => boolean
+		let literalPredicate = predicate.literal(this.scanner.token);
+		if (this.flags.has("i"))
 		{
-			if (ignoreCase)
-			{
-				return (c: string): boolean => c.toLowerCase() === character.toLowerCase();
-			}
-			else
-			{
-				return (c: string): boolean => c === character;
-			}
+			literalPredicate = predicate.ignoreCase(literalPredicate);
+		}
+		return new Expr.Character(literalPredicate);
+	}
+
+	private parseEscape(): Expr.Expression
+	{
+		if (this.scanner.consume("d"))
+		{
+			return new Expr.Character(characterClass.digit);
+		}
+		else if (this.scanner.consume("D"))
+		{
+			return new Expr.Character(predicate.negate(characterClass.digit));
+		}
+		else if (this.scanner.consume("w"))
+		{
+			return new Expr.Character(characterClass.word);
+		}
+		else if (this.scanner.consume("W"))
+		{
+			return new Expr.Character(predicate.negate(characterClass.word));
+		}
+		else if (this.scanner.consume("s"))
+		{
+			return new Expr.Character(characterClass.whitespace);
+		}
+		else if (this.scanner.consume("S"))
+		{
+			return new Expr.Character(predicate.negate(characterClass.whitespace));
+		}
+		else if (this.scanner.consume("t"))
+		{
+			return new Expr.Character(predicate.literal("\t"));
+		}
+		else if (this.scanner.consume("r"))
+		{
+			return new Expr.Character(predicate.literal("\r"));
+		}
+		else if (this.scanner.consume("n"))
+		{
+			return new Expr.Character(predicate.literal("\n"));
+		}
+		else if (this.scanner.consume("a"))
+		{
+			return new Expr.Character(predicate.literal("\x07"));
+		}
+		else if (this.scanner.consume("b"))
+		{
+			return new Expr.Character(predicate.literal("\b"));
+		}
+		else if (this.scanner.consume("e"))
+		{
+			return new Expr.Character(predicate.literal("\x1B"));
+		}
+		else if (this.scanner.consume("f"))
+		{
+			return new Expr.Character(predicate.literal("\f"));
+		}
+		else if (this.scanner.consume("v"))
+		{
+			return new Expr.Character(predicate.literal("\v"));
+		}
+		else
+		{
+			this.scanner.expect(/[[\\^$.|?*+(){}]/, "escape sequence");
+			return new Expr.Character(predicate.literal(this.scanner.token));
 		}
 	}
 
-	private cleckFlags(flags: string): void
+	private parseClass(): Predicate
+	{
+		const negate = this.scanner.consume("^");
+		const predicates = [];
+		let subtractedClass;
+		while (true)
+		{
+			if (this.scanner.consume("-["))
+			{
+				subtractedClass = this.parseClass();
+				this.scanner.expect("]");
+				break;
+			}
+			else if (this.scanner.peek(/[^\]]/))
+			{
+				const startIndex = this.scanner.index;
+				const element = this.parseClassElement();
+				if (typeof element === "string")
+				{
+					if (this.scanner.consume(/-(?!])/))
+					{
+						// Parse character range
+						const endIndex = this.scanner.index;
+						const endElement = this.parseClassElement();
+						if (typeof endElement !== "string")
+						{
+							throw new SyntaxError(`Unexpected class expression in a character range at position ${endIndex}.`);
+						}
+						const start = element.charCodeAt(0);
+						const end = endElement.charCodeAt(0);
+						if (start > end)
+						{
+							throw new SyntaxError(`Range expression in reverse order at position ${startIndex}.`);
+						}
+						predicates.push(predicate.range(start, end));
+					}
+					else
+					{
+						// Handle single character
+						predicates.push(predicate.literal(element));
+					}
+				}
+				else
+				{
+					// Handle character class, such as \d
+					predicates.push(element);
+				}
+			}
+			else
+			{
+				break;
+			}
+		}
+		let classPredicate = predicate.class(predicates);
+		if (this.flags.has("i"))
+		{
+			classPredicate = predicate.ignoreCase(classPredicate);
+		}
+		if (negate)
+		{
+			classPredicate = predicate.negate(classPredicate);
+		}
+		if (subtractedClass !== undefined)
+		{
+			classPredicate = predicate.subtract(classPredicate, subtractedClass);
+		}
+		return classPredicate;
+	}
+
+	private parseClassElement(): string | Predicate
+	{
+		// Parse a single element of a class, such as "a", "\]", or "\d"
+		if (this.scanner.consume("\\"))
+		{
+			return this.parseClassEscape();
+		}
+		else
+		{
+			if (!this.scanner.consume(/[^]/))
+			{
+				throw new Error(`Internal error NO_CHAR at position ${this.scanner.index}.`);
+			}
+			return this.scanner.token;
+		}
+	}
+
+	private parseClassEscape(): string | Predicate
+	{
+		if (this.scanner.consume("d"))
+		{
+			return characterClass.digit;
+		}
+		else if (this.scanner.consume("D"))
+		{
+			return predicate.negate(characterClass.digit);
+		}
+		else if (this.scanner.consume("w"))
+		{
+			return characterClass.word;
+		}
+		else if (this.scanner.consume("W"))
+		{
+			return predicate.negate(characterClass.word);
+		}
+		else if (this.scanner.consume("s"))
+		{
+			return characterClass.whitespace;
+		}
+		else if (this.scanner.consume("S"))
+		{
+			return predicate.negate(characterClass.whitespace);
+		}
+		else if (this.scanner.consume("t"))
+		{
+			return "\t";
+		}
+		else if (this.scanner.consume("r"))
+		{
+			return "\r";
+		}
+		else if (this.scanner.consume("n"))
+		{
+			return "\n";
+		}
+		else if (this.scanner.consume("a"))
+		{
+			return "\x07";
+		}
+		else if (this.scanner.consume("b"))
+		{
+			return "\b";
+		}
+		else if (this.scanner.consume("e"))
+		{
+			return "\x1B";
+		}
+		else if (this.scanner.consume("f"))
+		{
+			return "\f";
+		}
+		else if (this.scanner.consume("v"))
+		{
+			return "\v";
+		}
+		else
+		{
+			this.scanner.expect(/[\^\-\]\\]/, "escape sequence");
+			return this.scanner.token;
+		}
+	}
+
+	private checkFlags(flags: string): void
 	{
 		const invalidFlag = Parser.findInvalidFlag(flags);
 		if (invalidFlag !== undefined)
