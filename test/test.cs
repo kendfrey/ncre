@@ -10,14 +10,30 @@ namespace Ncre
 	{
 		public Task<object> Parse(dynamic data)
 		{
-			return Task.FromResult<object>(new Regex(data.regex));
+			var regex = GetRegex(data);
+			return Task.FromResult<object>(regex);
 		}
 
 		public Task<object> Match(dynamic data)
 		{
+			Regex regex = GetRegex(data);
+			string input = data.input;
+			return Task.FromResult<object>(new MatchDto(regex, regex.Match(input)));
+		}
+
+		public Task<object> Matches(dynamic data)
+		{
+			Regex regex = GetRegex(data);
+			string input = data.input;
+			return Task.FromResult<object>(regex.Matches(input).Cast<Match>().Select(m => new MatchDto(regex, m)));
+		}
+
+		private Regex GetRegex(dynamic data)
+		{
 			RegexOptions options = RegexOptions.None;
-			object flags;
-			if ((data.options as IDictionary<string, object>).TryGetValue("flags", out flags))
+			if (((IDictionary<string, object>)data).TryGetValue("options", out object dataOptionsObj)
+				&& dataOptionsObj is IDictionary <string, object> dataOptions
+				&& dataOptions.TryGetValue("flags", out object flags))
 			{
 				foreach (char flag in (flags as string).ToLower())
 				{
@@ -31,8 +47,7 @@ namespace Ncre
 					}
 				}
 			}
-			var regex = new Regex(data.regex, options);
-			return Task.FromResult<object>(new MatchDto(regex, regex.Match(data.input)));
+			return new Regex(data.regex, options);
 		}
 	}
 
