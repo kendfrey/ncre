@@ -1,4 +1,4 @@
-import { Sequence } from "./expression";
+import { Expression } from "./expression";
 import { Parser } from "./parser";
 import { Capture, Group, Match } from "./result";
 import { CaptureGroup, State } from "./state";
@@ -10,7 +10,7 @@ export interface RegexOptions
 
 export class Regex
 {
-	private ast: Sequence;
+	private ast: Expression;
 	private groups: Map<string, CaptureGroup>;
 
 	public constructor(regex: string, options: RegexOptions = {})
@@ -28,7 +28,7 @@ export class Regex
 		{
 			flags = "";
 		}
-		({ sequence: this.ast, groups: this.groups } = new Parser(regex, flags).parse());
+		({ expression: this.ast, groups: this.groups } = new Parser(regex, flags).parse());
 	}
 
 	public match(input: string, startIndex: number = 0): Match

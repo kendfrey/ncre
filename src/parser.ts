@@ -124,7 +124,7 @@ class Flags
 
 export interface ParseResult
 {
-	sequence: Expr.Sequence;
+	expression: Expr.Expression;
 	groups: Map<string, CaptureGroup>;
 }
 
@@ -206,20 +206,32 @@ export class Parser
 
 	public parse(): ParseResult
 	{
-		const sequence = this.parseSequence();
+		const expression = this.parseRegex();
 		this.scanner.unexpect(/[^]/);
-		return { sequence, groups: this.groups };
+		return { expression, groups: this.groups };
+	}
+
+	private parseRegex(): Expr.Expression
+	{
+		this.flags.push();
+
+		let expression: Expr.Expression = this.parseSequence();
+		if (this.scanner.consume("|"))
+		{
+			expression = new Expr.Alternation(expression, this.parseRegex());
+		}
+
+		this.flags.pop();
+		return expression;
 	}
 
 	private parseSequence(): Expr.Sequence
 	{
-		this.flags.push();
 		const atoms = [];
-		while (!this.scanner.peek(/\)|$/))
+		while (this.scanner.peek(/[^)|]/))
 		{
 			atoms.push(this.parseAtom());
 		}
-		this.flags.pop();
 		return new Expr.Sequence(atoms);
 	}
 
@@ -236,7 +248,7 @@ export class Parser
 		else if (this.scanner.consume("(?:"))
 		{
 			// Parse non-capturing group
-			atom = this.parseSequence();
+			atom = this.parseRegex();
 			this.scanner.expect(")");
 		}
 		else if (this.scanner.consume(/\(\?[<']/))
@@ -250,7 +262,7 @@ export class Parser
 				throw new SyntaxError(`Group index cannot begin with 0. Invalid group name at position ${this.scanner.index}.`);
 			}
 			this.scanner.expect(endDelim);
-			atom = new Expr.Group(this.parseSequence(), this.getGroup(name));
+			atom = new Expr.Group(this.parseRegex(), this.getGroup(name));
 			this.scanner.expect(")");
 		}
 		else if (this.scanner.consume("(?"))
@@ -271,7 +283,7 @@ export class Parser
 				// Parse scoped flags - (?flags:regex)
 				this.flags.push();
 				this.flags.set(setFlags, clearFlags);
-				atom = this.parseSequence();
+				atom = this.parseRegex();
 				this.scanner.expect(")");
 				this.flags.pop();
 			}
@@ -288,7 +300,7 @@ export class Parser
 			// Parse capturing group
 			const group = this.getGroup(this.curGroupIndex.toString());
 			this.curGroupIndex++;
-			atom = new Expr.Group(this.parseSequence(), group);
+			atom = new Expr.Group(this.parseRegex(), group);
 			this.scanner.expect(")");
 		}
 		else if (this.scanner.consume("["))

@@ -143,6 +143,8 @@ export class Repetition implements Expression
 			// Try to match the maximum number of repetitions.
 			while (tokens.length < this.max)
 			{
+				const previousIndex = state.index;
+
 				// Match an iteration.
 				const token = this.atom.match(state);
 				if (token !== undefined)
@@ -159,6 +161,12 @@ export class Repetition implements Expression
 				{
 					// Try to backtrack to another match.
 					return this.backtrackInternal(state, tokens);
+				}
+
+				// If the match hasn't advanced, terminate it to prevent an infinite loop.
+				if (state.index === previousIndex && tokens.length >= this.min)
+				{
+					return tokens;
 				}
 			}
 		}
@@ -185,6 +193,62 @@ export class Repetition implements Expression
 			}
 		}
 		return undefined;
+	}
+}
+
+export class Alternation implements Expression
+{
+	public constructor(private readonly left: Expression, private readonly right: Expression)
+	{
+
+	}
+
+	public match(state: State): { side: "left" | "right"; token: object } | undefined
+	{
+		// Try the left side first.
+		let token = this.left.match(state);
+		if (token !== undefined)
+		{
+			return { side: "left", token };
+		}
+		// Try the right side last.
+		token = this.right.match(state);
+		if (token !== undefined)
+		{
+			return { side: "right", token };
+		}
+		return undefined;
+	}
+
+	public backtrack(state: State, { side, token }: { side: "left" | "right"; token: object })
+		: { side: "left" | "right"; token: object } | undefined
+	{
+		if (side === "left")
+		{
+			// If the last match came from the left side, backtrack it.
+			let newToken = this.left.backtrack(state, token);
+			if (newToken !== undefined)
+			{
+				return { side: "left", token: newToken };
+			}
+			// If that failed, try the right side.
+			newToken = this.right.match(state);
+			if (newToken !== undefined)
+			{
+				return { side: "right", token: newToken };
+			}
+			return undefined;
+		}
+		else
+		{
+			// If the last match came from the right side, backtrack it.
+			const newToken = this.right.backtrack(state, token);
+			if (newToken !== undefined)
+			{
+				return { side: "right", token: newToken };
+			}
+			return undefined;
+		}
 	}
 }
 
@@ -217,12 +281,12 @@ export class Character implements Expression
 
 export class Group implements Expression
 {
-	public constructor(private readonly atom: Sequence, private readonly group: CaptureGroup)
+	public constructor(private readonly atom: Expression, private readonly group: CaptureGroup)
 	{
 
 	}
 
-	public match(state: State): { start: number; token: object[] } | undefined
+	public match(state: State): { start: number; token: object } | undefined
 	{
 		const start = state.index;
 		const token = this.atom.match(state);
@@ -238,8 +302,8 @@ export class Group implements Expression
 		}
 	}
 
-	public backtrack(state: State, { start, token }: { start: number; token: object[] })
-		: { start: number; token: object[] } | undefined
+	public backtrack(state: State, { start, token }: { start: number; token: object })
+		: { start: number; token: object } | undefined
 	{
 		// Remove the previous capture.
 		state.groups.get(this.group)!.pop();

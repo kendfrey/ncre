@@ -20,6 +20,7 @@ suite("regex engine", () =>
 		testMatches("literal text", "abb", "ababbb");
 		testMatches("failed match", "a", "b");
 		testMatches("dot - .", ".*", "abc\r\n");
+		testMatches("alternation - |", "a*|b", "aabba");
 	});
 
 	suite("escape sequences", () =>
@@ -63,6 +64,7 @@ suite("regex engine", () =>
 		testMatches("non-capturing - (?:)", "a(?:b(?:c)?)*", "abbccb");
 		testParseError("mismatched parentheses - (", "(a");
 		testParseError("mismatched parentheses - )", ")a");
+		testMatches("alternation - |", "(a*|b)*", "aabba");
 
 		suite("capturing", () =>
 		{
