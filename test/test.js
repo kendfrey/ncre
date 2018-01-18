@@ -19,6 +19,7 @@ suite("regex engine", () =>
 	{
 		testMatches("literal text", "abb", "ababbb");
 		testMatches("failed match", "a", "b");
+		testMatches("dot - .", ".*", "abc\r\n");
 	});
 
 	suite("escape sequences", () =>
@@ -112,6 +113,8 @@ suite("regex engine", () =>
 	{
 		testMatches("case sensitivity", "a", "Aa");
 		testMatches("case insensitivity", "a", "Aa", { flags: "i" });
+		testMatches("non-single-line mode", ".*", "a\r\nb\r\nc");
+		testMatches("single-line mode", ".*", "a\r\nb\r\nc", { flags: "s" });
 
 		suite("inline", () =>
 		{

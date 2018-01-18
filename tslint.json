@@ -26,7 +26,8 @@
         "switch-final-break": [true, "always"],
         "completed-docs": false,
         "arrow-parens": false,
-        "only-arrow-functions": false
+        "only-arrow-functions": false,
+        "prefer-conditional-expression": false
     },
     "rulesDirectory": []
 }

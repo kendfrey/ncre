@@ -177,6 +177,7 @@ const characterClass =
 		predicate.literal("\v"),
 		predicate.literal("\u0085"),
 	]),
+	dot: predicate.negate(predicate.literal("\n")),
 };
 
 export class Parser
@@ -295,6 +296,11 @@ export class Parser
 			// Parse character class
 			atom = new Expr.Character(this.parseClass());
 			this.scanner.expect("]");
+		}
+		else if (this.scanner.consume("."))
+		{
+			// Parse dot (any character)
+			atom = new Expr.Character(this.flags.has("s") ? (): boolean => true : characterClass.dot);
 		}
 		else
 		{
@@ -570,7 +576,7 @@ export class Parser
 
 	public static findInvalidFlag(flags: string): string | undefined
 	{
-		const match = flags.match(/[^i]/i);
+		const match = flags.match(/[^is]/i);
 		if (match !== null)
 		{
 			return match[0];
