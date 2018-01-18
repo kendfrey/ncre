@@ -121,6 +121,7 @@ suite("regex engine", () =>
 		suite("inline", () =>
 		{
 			testMatches("inline - (?)", "a(?i)a*(?i-i)a", "AaAaA");
+			testMatches("inline at end of sequence", "a(?i)", "AaAaA");
 			testMatches("scoped inline - (?)", "(?:a(?i)a*)a", "AaAaA");
 			testMatches("scoped - (?:)", "a(?i:a*)a", "AaAaA");
 			testParseError("invalid flag", "(?a)");

@@ -230,12 +230,16 @@ export class Parser
 		const atoms = [];
 		while (this.scanner.peek(/[^)|]/))
 		{
-			atoms.push(this.parseAtom());
+			const atom = this.parseAtom();
+			if (atom !== undefined)
+			{
+				atoms.push(atom);
+			}
 		}
 		return new Expr.Sequence(atoms);
 	}
 
-	private parseAtom(): Expr.Expression
+	private parseAtom(): Expr.Expression | undefined
 	{
 		this.scanner.unexpect(/[*+?)]/);
 
@@ -292,7 +296,7 @@ export class Parser
 				// Parse normal flags modifier - (?flags)
 				this.scanner.expect(")");
 				this.flags.set(setFlags, clearFlags);
-				return this.parseAtom(); // This just short-circuits to parsing the next atom.
+				return undefined;
 			}
 		}
 		else if (this.scanner.consume("("))
