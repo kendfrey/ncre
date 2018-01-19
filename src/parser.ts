@@ -5,6 +5,7 @@ class Scanner
 {
 	public index = 0;
 	public token: string;
+	public match: Array<string | undefined> | undefined;
 
 	public constructor(private readonly str: string)
 	{
@@ -21,6 +22,7 @@ class Scanner
 			if (match !== null)
 			{
 				this.token = match[0];
+				this.match = match;
 				return true;
 			}
 		}
@@ -29,6 +31,7 @@ class Scanner
 			if (this.str.startsWith(pattern, this.index))
 			{
 				this.token = pattern;
+				this.match = undefined;
 				return true;
 			}
 		}
@@ -241,7 +244,7 @@ export class Parser
 
 	private parseAtom(): Expr.Expression | undefined
 	{
-		this.scanner.unexpect(/[*+?)]/);
+		this.scanner.unexpect(/[*+?)]|{(\d+)(,(\d+)?)?}/);
 
 		let atom: Expr.Expression;
 		if (this.scanner.consume("\\"))
@@ -263,7 +266,9 @@ export class Parser
 			const name = this.scanner.token;
 			if (name.startsWith("0"))
 			{
-				throw new SyntaxError(`Group index cannot begin with 0. Invalid group name at position ${this.scanner.index}.`);
+				throw new SyntaxError(
+					"Group index cannot begin with 0. " +
+					`Invalid group name at position ${this.scanner.index - name.length}.`);
 			}
 			this.scanner.expect(endDelim);
 			atom = new Expr.Group(this.parseRegex(), this.getGroup(name));
@@ -325,26 +330,52 @@ export class Parser
 		}
 
 		// Parse repetition modifiers
-		if (this.scanner.consume(/[*+?]/))
+		if (this.scanner.consume(/[*+?]|{(\d+)(,(\d+)?)?}/))
 		{
 			const repetition = this.scanner.token;
+			const match = this.scanner.match!;
 			// Parse lazy modifier
 			const lazy = this.scanner.consume("?");
+			let min;
+			let max;
 			switch (repetition)
 			{
 				case "*":
-					atom = new Expr.Repetition(atom, 0, Infinity, lazy);
+					min = 0;
+					max = Infinity;
 					break;
 				case "+":
-					atom = new Expr.Repetition(atom, 1, Infinity, lazy);
+					min = 1;
+					max = Infinity;
 					break;
 				case "?":
-					atom = new Expr.Repetition(atom, 0, 1, lazy);
+					min = 0;
+					max = 1;
 					break;
 				default:
-					// Just return the atom.
+					// The {min,max} specifier
+					min = parseInt(match[1]!);
+					max = min;
+					if (match[2] !== undefined)
+					{
+						if (match[3] !== undefined)
+						{
+							max = parseInt(match[3]!);
+							if (max < min)
+							{
+								throw new SyntaxError(
+									"Maximum must not be less than minimum. " +
+									`Invalid repetition count at ${this.scanner.index - this.scanner.token.length}.`);
+							}
+						}
+						else
+						{
+							max = Infinity;
+						}
+					}
 					break;
 			}
+			atom = new Expr.Repetition(atom, min, max, lazy);
 		}
 
 		return atom;

@@ -51,11 +51,21 @@ suite("regex engine", () =>
 		testParseError("invalid character - *", "*a");
 		testParseError("invalid character - +", "+a");
 
+		suite("limited", () =>
+		{
+			testMatches("exact count - {n}", "a{2}", "abaaaaa");
+			testMatches("minimum count - {n,}", "a{2,}", "abaaaaa");
+			testMatches("range count - {n,m}", "a{2,3}", "abaaaaa");
+			testMatches("literal if incorrect format", "a{-2,3}", "aaa{-2,3}");
+			testParseError("invalid position", "a*{2,3}");
+		});
+
 		suite("lazy", () =>
 		{
 			testMatches("lazy zero or one - ??", "ab??", "ab");
 			testMatches("lazy zero or more - *?", "a*?b*?", "aabbb");
 			testMatches("lazy one or more - +?", "a+?b+?", "aabbb");
+			testMatches("lazy range - {n,m}?", "a{2,3}?", "abaaaaa");
 		});
 	});
 

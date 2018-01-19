@@ -27,7 +27,9 @@
         "completed-docs": false,
         "arrow-parens": false,
         "only-arrow-functions": false,
-        "prefer-conditional-expression": false
+        "prefer-conditional-expression": false,
+        "no-magic-numbers": false,
+        "radix": false
     },
     "rulesDirectory": []
 }
