@@ -453,15 +453,26 @@ export class Parser
 		{
 			return new Expr.Character(predicate.literal("\v"));
 		}
+		else if (this.scanner.consume("c"))
+		{
+			this.scanner.expect(/[A-Za-z]/, "control character letter");
+			return new Expr.Character(predicate.literal(
+				String.fromCharCode(this.scanner.token.toUpperCase().charCodeAt(0) - 64)
+			));
+		}
 		else if (this.scanner.consume("x"))
 		{
 			this.scanner.expect(/[0-9A-Fa-f]{2}/, "2-letter hex code");
-			return new Expr.Character(predicate.literal(String.fromCharCode(parseInt(this.scanner.token, 16))));
+			return new Expr.Character(predicate.literal(
+				String.fromCharCode(parseInt(this.scanner.token, 16))
+			));
 		}
 		else if (this.scanner.consume("u"))
 		{
 			this.scanner.expect(/[0-9A-Fa-f]{4}/, "4-letter hex code");
-			return new Expr.Character(predicate.literal(String.fromCharCode(parseInt(this.scanner.token, 16))));
+			return new Expr.Character(predicate.literal(
+				String.fromCharCode(parseInt(this.scanner.token, 16))
+			));
 		}
 		else
 		{
@@ -613,6 +624,11 @@ export class Parser
 		else if (this.scanner.consume("v"))
 		{
 			return "\v";
+		}
+		else if (this.scanner.consume("c"))
+		{
+			this.scanner.expect(/[A-Za-z]/, "control character letter");
+			return String.fromCharCode(this.scanner.token.toUpperCase().charCodeAt(0) - 64);
 		}
 		else if (this.scanner.consume("x"))
 		{

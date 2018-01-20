@@ -40,6 +40,7 @@ suite("regex engine", () =>
 		testMatches("escape - \\e", "\\e+", "\x1Ba");
 		testMatches("form feed - \\f", "\\f+", "\fa");
 		testMatches("vertical tab - \\v", "\\v+", "\va");
+		testMatches("control character - \\c", "\\cJ+", "\na");
 		testMatches("hex - \\x", "\\x61\\x5F", "a_a");
 		testMatches("unicode hex - \\u", "\\u0061\\u2081", "a₁a");
 	});
@@ -120,6 +121,7 @@ suite("regex engine", () =>
 			testMatches("escape - \\e", "[\\e]+", "\x1Ba");
 			testMatches("form feed - \\f", "[\\f]+", "\fa");
 			testMatches("vertical tab - \\v", "[\\v]+", "\va");
+			testMatches("control character - \\c", "[\\cJ]+", "\na");
 			testMatches("hex - \\x", "[\\x61\\x5F]+", "a_a");
 			testMatches("unicode hex - \\u", "[\\u0061\\u2081]+", "a₁a");
 		});

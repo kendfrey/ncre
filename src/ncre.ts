@@ -69,8 +69,8 @@ export class Regex
 				(
 					[...state.groups].map
 					(
-						([g, cs]) => [g.name, new Group(g.name, cs.map(c => new Capture(c.index, c.value)))] as [string, Group],
-					),
+						([g, cs]) => [g.name, new Group(g.name, cs.map(c => new Capture(c.index, c.value)))] as [string, Group]
+					)
 				);
 				const capture = new Capture(i, state.str.substring(i, state.index));
 				return new Match(groups, capture);

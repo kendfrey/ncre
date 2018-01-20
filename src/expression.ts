@@ -90,7 +90,7 @@ export class Repetition implements Expression
 		private readonly atom: Expression,
 		private readonly min: number,
 		private readonly max: number,
-		private readonly lazy: boolean,
+		private readonly lazy: boolean
 	)
 	{
 
