@@ -453,6 +453,16 @@ export class Parser
 		{
 			return new Expr.Character(predicate.literal("\v"));
 		}
+		else if (this.scanner.consume("x"))
+		{
+			this.scanner.expect(/[0-9A-Fa-f]{2}/, "2-letter hex code");
+			return new Expr.Character(predicate.literal(String.fromCharCode(parseInt(this.scanner.token, 16))));
+		}
+		else if (this.scanner.consume("u"))
+		{
+			this.scanner.expect(/[0-9A-Fa-f]{4}/, "4-letter hex code");
+			return new Expr.Character(predicate.literal(String.fromCharCode(parseInt(this.scanner.token, 16))));
+		}
 		else
 		{
 			this.scanner.expect(/[[\\^$.|?*+(){}]/, "escape sequence");
@@ -603,6 +613,16 @@ export class Parser
 		else if (this.scanner.consume("v"))
 		{
 			return "\v";
+		}
+		else if (this.scanner.consume("x"))
+		{
+			this.scanner.expect(/[0-9A-Fa-f]{2}/, "2-letter hex code");
+			return String.fromCharCode(parseInt(this.scanner.token, 16));
+		}
+		else if (this.scanner.consume("u"))
+		{
+			this.scanner.expect(/[0-9A-Fa-f]{4}/, "4-letter hex code");
+			return String.fromCharCode(parseInt(this.scanner.token, 16));
 		}
 		else
 		{
