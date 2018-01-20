@@ -18,7 +18,7 @@ suite("regex engine", () =>
 	suite("basics", () =>
 	{
 		testMatches("literal text", "abb", "ababbb");
-		testMatches("failed match", "a", "b");
+		testNoMatches("failed match", "a", "b");
 		testMatches("dot - .", ".*", "abc\r\n");
 		testMatches("alternation - |", "a*|b", "aabba");
 	});
@@ -26,7 +26,7 @@ suite("regex engine", () =>
 	suite("escape sequences", () =>
 	{
 		testMatches("literal - \\", "a\\+", "aaa+");
-		testParseError("invalid sequence", "\\q");
+		testNoParse("invalid sequence", "\\q");
 		testMatches("digit - \\d", "\\d+", "abc1234567890def");
 		testMatches("non-digit - \\D", "\\D+", "abc1234567890def");
 		testMatches("word character - \\w", "\\w+", "(a_123)");
@@ -50,9 +50,9 @@ suite("regex engine", () =>
 		testMatches("zero or one - ?", "ab?c?a?", "aba");
 		testMatches("zero or more - *", "b*a*", "aabbb");
 		testMatches("one or more - +", "b+", "aabbb");
-		testParseError("invalid character - ?", "?a");
-		testParseError("invalid character - *", "*a");
-		testParseError("invalid character - +", "+a");
+		testNoParse("invalid character - ?", "?a");
+		testNoParse("invalid character - *", "*a");
+		testNoParse("invalid character - +", "+a");
 
 		suite("limited", () =>
 		{
@@ -60,7 +60,7 @@ suite("regex engine", () =>
 			testMatches("minimum count - {n,}", "a{2,}", "abaaaaa");
 			testMatches("range count - {n,m}", "a{2,3}", "abaaaaa");
 			testMatches("literal if incorrect format", "a{-2,3}", "aaa{-2,3}");
-			testParseError("invalid position", "a*{2,3}");
+			testNoParse("invalid position", "a*{2,3}");
 		});
 
 		suite("lazy", () =>
@@ -75,8 +75,8 @@ suite("regex engine", () =>
 	suite("groups", () =>
 	{
 		testMatches("non-capturing - (?:)", "a(?:b(?:c)?)*", "abbccb");
-		testParseError("mismatched parentheses - (", "(a");
-		testParseError("mismatched parentheses - )", ")a");
+		testNoParse("mismatched parentheses - (", "(a");
+		testNoParse("mismatched parentheses - )", ")a");
 		testMatches("alternation - |", "(a*|b)*", "aabba");
 
 		suite("capturing", () =>
@@ -88,9 +88,9 @@ suite("regex engine", () =>
 			testMatches("duplicate names", "(?<A>a)+(?<A>b)", "aab");
 			testMatches("duplicate numbers", "(a)+(?<1>b)", "aab");
 			testMatches("case sensitive names", "(?<A>a)+(?<a>b)", "aab");
-			testParseError("invalid names", "(?<1a>)");
+			testNoParse("invalid names", "(?<1a>)");
 			testParse("underscored names", "(?<_1a>)");
-			testParseError("invalid zero", "(?<0>)");
+			testNoParse("invalid zero", "(?<0>)");
 		});
 	});
 
@@ -98,7 +98,7 @@ suite("regex engine", () =>
 	{
 		testMatches("inclusive - []", "[a-z0]+", "123abc0123");
 		testMatches("exclusive - [^]", "[^a-z0]+", "123abc0123");
-		testParseError("mismatched brackets - [", "[");
+		testNoParse("mismatched brackets - [", "[");
 		testParse("mismatched brackets - ]", "]");
 		testMatches("literal hyphens - -", "[a-]+", "a-z");
 		testMatches("subtraction - -[]", "[a-z-[ad]]+", "abcdef");
@@ -106,7 +106,7 @@ suite("regex engine", () =>
 		suite("escape sequences", () =>
 		{
 			testMatches("literal - \\", "[[\\]a]+", "ab][[]ab");
-			testParseError("invalid sequence", "[\\q]");
+			testNoParse("invalid sequence", "[\\q]");
 			testMatches("digit - \\d", "[\\d]+", "abc1234567890def");
 			testMatches("non-digit - \\D", "[\\D]+", "abc1234567890def");
 			testMatches("word character - \\w", "[\\w]+", "(a_123)");
@@ -140,8 +140,8 @@ suite("regex engine", () =>
 			testMatches("inline at end of sequence", "a(?i)", "AaAaA");
 			testMatches("scoped inline - (?)", "(?:a(?i)a*)a", "AaAaA");
 			testMatches("scoped - (?:)", "a(?i:a*)a", "AaAaA");
-			testParseError("invalid flag", "(?a)");
-			testParseError("missing flags", "(?)");
+			testNoParse("invalid flag", "(?a)");
+			testNoParse("missing flags", "(?)");
 		});
 	});
 });
@@ -319,7 +319,7 @@ function testParse(feature, regex, options, only)
 	});
 }
 
-function testParseError(feature, regex, options, only)
+function testNoParse(feature, regex, options, only)
 {
 	(only ? test.only : test)(feature, () =>
 	{
@@ -332,10 +332,24 @@ function testMatches(feature, regex, input, options, only)
 {
 	(only ? test.only : test)(feature, () =>
 	{
-		const actual = new ncre.Regex(regex, options).matches(input);
-		const expected = dotnet.matches({ regex, input, options }, true);
-		// Edge deserializes Match.groups as an array, so convert it to a Map.
-		expected.forEach(m => m.groups = new Map(m.groups.map(g => [g.name, g])));
-		assert.deepEqual(actual, expected, "Matches are not equal.")
+		doMatches(regex, input, options, true, "No match found.");
 	});
+}
+
+function testNoMatches(feature, regex, input, options, only)
+{
+	(only ? test.only : test)(feature, () =>
+	{
+		doMatches(regex, input, options, false, "Unexpected match found.");
+	});
+}
+
+function doMatches(regex, input, options, success, successText)
+{
+	const actual = new ncre.Regex(regex, options).matches(input);
+	const expected = dotnet.matches({ regex, input, options }, true);
+	// Edge deserializes Match.groups as an array, so convert it to a Map.
+	expected.forEach(m => m.groups = new Map(m.groups.map(g => [g.name, g])));
+	assert.deepEqual(actual, expected, "Matches are not equal.");
+	assert.strictEqual(actual.length > 0, success, successText);
 }
