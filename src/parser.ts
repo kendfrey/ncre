@@ -189,6 +189,7 @@ export class Parser
 	private curGroupIndex = 1;
 	private groups = new Map<string, CaptureGroup>();
 	private flags: Flags;
+	private postParseActions: Array<() => void> = [];
 
 	public constructor(regex: string, flags: string)
 	{
@@ -211,6 +212,7 @@ export class Parser
 	{
 		const expression = this.parseRegex();
 		this.scanner.unexpect(/[^]/);
+		this.postParseActions.forEach(f => f());
 		return { expression, groups: this.groups };
 	}
 
@@ -258,17 +260,18 @@ export class Parser
 			atom = this.parseRegex();
 			this.scanner.expect(")");
 		}
-		else if (this.scanner.consume(/\(\?[<']/))
+		else if (this.scanner.consume(/\(\?([<'])/))
 		{
 			// Parse named capturing group
-			const endDelim = this.scanner.token.endsWith("<") ? ">" : "'";
+			const endDelim = this.scanner.match![1] === "<" ? ">" : "'";
+			const nameIndex = this.scanner.index;
 			this.scanner.expect(/[_A-Za-z]\w*|\d+/, "group name or index");
 			const name = this.scanner.token;
 			if (name.startsWith("0"))
 			{
 				throw new SyntaxError(
 					"Group index cannot begin with 0. " +
-					`Invalid group name at position ${this.scanner.index - name.length}.`);
+					`Invalid group name at position ${nameIndex}.`);
 			}
 			this.scanner.expect(endDelim);
 			atom = new Expr.Group(this.parseRegex(), this.getGroup(name));
@@ -474,11 +477,45 @@ export class Parser
 				String.fromCharCode(parseInt(this.scanner.token, 16))
 			));
 		}
+		else if (this.scanner.consume("k"))
+		{
+			return this.parseNamedBackReference();
+		}
 		else
 		{
 			this.scanner.expect(/[[\\^$.|?*+(){}]/, "escape sequence");
 			return new Expr.Character(predicate.literal(this.scanner.token));
 		}
+	}
+
+	private parseNamedBackReference(): Expr.Reference
+	{
+		this.scanner.expect(/[<']/, "< or '");
+		const endDelim = this.scanner.token === "<" ? ">" : "'";
+		const nameIndex = this.scanner.index;
+		this.scanner.expect(/[_A-Za-z]\w*|\d+/, "group name or index");
+		const name = this.scanner.token;
+		if (name.startsWith("0"))
+		{
+			throw new SyntaxError(
+				"Group index cannot begin with 0. " +
+				`Invalid group name at position ${nameIndex}.`);
+		}
+		this.scanner.expect(endDelim);
+		const reference = new Expr.Reference(this.flags.has("i"));
+		this.postParseActions.push(() =>
+		{
+			const group = this.groups.get(name);
+			if (group !== undefined)
+			{
+				reference.group = group;
+			}
+			else
+			{
+				throw new SyntaxError(`Invalid group name ${name} at position ${nameIndex}.`);
+			}
+		});
+		return reference;
 	}
 
 	private parseClass(): Predicate

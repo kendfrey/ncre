@@ -40,7 +40,9 @@
                     "functions": "never"
                 }
             }
-        ]
+        ],
+        "no-empty-interface": false,
+        "no-void-expression": ["ignore-arrow-function-shorthand"]
     },
     "rulesDirectory": []
 }

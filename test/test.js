@@ -43,6 +43,18 @@ suite("regex engine", () =>
 		testMatches("control character - \\c", "\\cJ+", "\na");
 		testMatches("hex - \\x", "\\x61\\x5F", "a_a");
 		testMatches("unicode hex - \\u", "\\u0061\\u2081", "a₁a");
+
+		suite("back references", () =>
+		{
+			testMatches("named - \\k<>", "(a)(?<X>b)c\\k<X>\\k<1>", "abcba");
+			testMatches("named - \\k''", "(a)(?'X'b)c\\k'X'\\k'1'", "abcba");
+			testNoParse("nonexistent group", "(a)\\k<X>");
+			testNoMatches("uncaptured group", "(a)?\\k<1>", "bb");
+			testMatches("nested", "(a\\k<1>?)", "aaaaa");
+			testMatches("forward", "(?:\\k<1>?(a))+", "aaaaa");
+			testNoMatches("case sensitivity", "(a)\\k<1>", "aA");
+			testMatches("case insensitivity", "(a)\\k<1>", "aA", { flags: "i" });
+		});
 	});
 
 	suite("repetition", () =>

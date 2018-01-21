@@ -1,15 +1,20 @@
 import { CaptureGroup, CaptureValue, State } from "./state";
 
+interface Token
+{
+
+}
+
 export interface Expression
 {
 	// Tokens represent the "state" of an expression.
 	// Each successful candidate match returns a token which can later be passed to backtrack if backtracking is required.
 
 	// This tries to find the first possible match and returns a token if successful.
-	match(state: State): object | undefined;
+	match(state: State): Token | undefined;
 
 	// This takes a token and tries to find the next possible match by backtracking.
-	backtrack(state: State, token: object): object | undefined;
+	backtrack(state: State, token: Token): Token | undefined;
 }
 
 export class Sequence implements Expression
@@ -19,12 +24,12 @@ export class Sequence implements Expression
 
 	}
 
-	public match(state: State): object[] | undefined
+	public match(state: State): Token[] | undefined
 	{
 		return this.matchInternal(state, new Array(this.atoms.length), 0);
 	}
 
-	public backtrack(state: State, tokens: object[]): object[] | undefined
+	public backtrack(state: State, tokens: Token[]): Token[] | undefined
 	{
 		// Backtrack until a match is found.
 		const index = this.backtrackInternal(state, tokens, tokens.length - 1);
@@ -38,7 +43,7 @@ export class Sequence implements Expression
 		}
 	}
 
-	private matchInternal(state: State, tokens: object[], startAt: number): object[] | undefined
+	private matchInternal(state: State, tokens: Token[], startAt: number): Token[] | undefined
 	{
 		// Match forward through items in the sequence.
 		for (let i = startAt; i < this.atoms.length; i++)
@@ -65,7 +70,7 @@ export class Sequence implements Expression
 		return tokens;
 	}
 
-	private backtrackInternal(state: State, tokens: object[], startAt: number): number | undefined
+	private backtrackInternal(state: State, tokens: Token[], startAt: number): number | undefined
 	{
 		// Backtrack until a match is found.
 		for (let i = startAt; i >= 0; i--)
@@ -96,12 +101,12 @@ export class Repetition implements Expression
 
 	}
 
-	public match(state: State): object[] | undefined
+	public match(state: State): Token[] | undefined
 	{
 		return this.matchInternal(state, []);
 	}
 
-	public backtrack(state: State, tokens: object[]): object[] | undefined
+	public backtrack(state: State, tokens: Token[]): Token[] | undefined
 	{
 		// Try to match more times, if available.
 		if (this.lazy && tokens.length < this.max)
@@ -117,7 +122,7 @@ export class Repetition implements Expression
 		return this.backtrackInternal(state, tokens);
 	}
 
-	private matchInternal(state: State, tokens: object[]): object[] | undefined
+	private matchInternal(state: State, tokens: Token[]): Token[] | undefined
 	{
 		if (this.lazy)
 		{
@@ -173,7 +178,7 @@ export class Repetition implements Expression
 		return tokens;
 	}
 
-	private backtrackInternal(state: State, tokens: object[]): object[] | undefined
+	private backtrackInternal(state: State, tokens: Token[]): Token[] | undefined
 	{
 		// Backtrack until a match is found.
 		while (tokens.length > 0)
@@ -203,7 +208,7 @@ export class Alternation implements Expression
 
 	}
 
-	public match(state: State): { side: "left" | "right"; token: object } | undefined
+	public match(state: State): { side: "left" | "right"; token: Token } | undefined
 	{
 		// Try the left side first.
 		let token = this.left.match(state);
@@ -220,8 +225,8 @@ export class Alternation implements Expression
 		return undefined;
 	}
 
-	public backtrack(state: State, { side, token }: { side: "left" | "right"; token: object })
-		: { side: "left" | "right"; token: object } | undefined
+	public backtrack(state: State, { side, token }: { side: "left" | "right"; token: Token })
+		: { side: "left" | "right"; token: Token } | undefined
 	{
 		if (side === "left")
 		{
@@ -259,7 +264,7 @@ export class Character implements Expression
 
 	}
 
-	public match(state: State): object | undefined
+	public match(state: State): {} | undefined
 	{
 		if (state.index < state.str.length && this.filter(state.str[state.index]))
 		{
@@ -272,10 +277,10 @@ export class Character implements Expression
 		}
 	}
 
-	public backtrack(state: State, token: object): object | undefined
+	public backtrack(state: State, token: {}): undefined
 	{
 		state.index--;
-		return undefined;
+		return;
 	}
 }
 
@@ -286,7 +291,7 @@ export class Group implements Expression
 
 	}
 
-	public match(state: State): { start: number; token: object } | undefined
+	public match(state: State): { start: number; token: Token } | undefined
 	{
 		const start = state.index;
 		const token = this.atom.match(state);
@@ -302,8 +307,8 @@ export class Group implements Expression
 		}
 	}
 
-	public backtrack(state: State, { start, token }: { start: number; token: object })
-		: { start: number; token: object } | undefined
+	public backtrack(state: State, { start, token }: { start: number; token: Token })
+		: { start: number; token: Token } | undefined
 	{
 		// Remove the previous capture.
 		state.groups.get(this.group)!.pop();
@@ -319,5 +324,56 @@ export class Group implements Expression
 		{
 			return undefined;
 		}
+	}
+}
+
+export class Reference implements Expression
+{
+	// This gets populated after the parse, instead of in the constructor.
+	public group: CaptureGroup;
+
+	public constructor(private readonly ignoreCase: boolean)
+	{
+
+	}
+
+	public match(state: State): number | undefined
+	{
+		// Look up the string to be captured.
+		const captures = state.groups.get(this.group)!;
+		if (captures.length === 0)
+		{
+			// If the group has no captures, fail.
+			return undefined;
+		}
+		const capture = captures[captures.length - 1].value;
+
+		let success;
+		if (this.ignoreCase)
+		{
+			// Look for the capture, ignoring case.
+			success = state.str.substr(state.index, capture.length).toLowerCase() === capture.toLowerCase();
+		}
+		else
+		{
+			// Look for the capture.
+			success = state.str.substr(state.index, capture.length) === capture;
+		}
+
+		if (success)
+		{
+			state.index += capture.length;
+			return capture.length;
+		}
+		else
+		{
+			return undefined;
+		}
+	}
+
+	public backtrack(state: State, token: number): undefined
+	{
+		state.index -= token;
+		return;
 	}
 }
