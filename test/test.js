@@ -151,6 +151,7 @@ suite("regex engine", () =>
 	{
 		testMatches("case sensitivity", "a", "Aa");
 		testMatches("case insensitivity", "a", "Aa", { flags: "i" });
+		testMatches("case insensitive escapes", "\\x41\\u0041\\101", "aaa", { flags: "i" });
 		testMatches("non-single-line mode", ".*", "a\r\nb\r\nc");
 		testMatches("single-line mode", ".*", "a\r\nb\r\nc", { flags: "s" });
 

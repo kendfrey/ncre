@@ -139,10 +139,6 @@ const predicate =
 	{
 		return (c: string): boolean => c === character;
 	},
-	ignoreCase(basePredicate: Predicate): Predicate
-	{
-		return (c: string): boolean => basePredicate(c.toLowerCase()) || basePredicate(c.toUpperCase());
-	},
 	class(predicates: Predicate[]): Predicate
 	{
 		return (c: string): boolean => predicates.some(p => p(c));
@@ -164,12 +160,13 @@ const predicate =
 const characterClass =
 {
 	digit: predicate.range("0".charCodeAt(0), "9".charCodeAt(0)),
-	word: predicate.ignoreCase(predicate.class
+	word: predicate.class
 	([
 		predicate.range("0".charCodeAt(0), "9".charCodeAt(0)),
-		predicate.range("a".charCodeAt(0), "a".charCodeAt(0)),
+		predicate.range("A".charCodeAt(0), "Z".charCodeAt(0)),
+		predicate.range("a".charCodeAt(0), "z".charCodeAt(0)),
 		predicate.literal("_"),
-	])),
+	]),
 	whitespace: predicate.class
 	([
 		predicate.literal(" "),
@@ -318,7 +315,7 @@ export class Parser
 		else if (this.scanner.consume("["))
 		{
 			// Parse character class
-			atom = new Expr.Character(this.parseClass());
+			atom = new Expr.Character(this.parseClass(), this.flags.has("i"));
 			this.scanner.expect("]");
 		}
 		else if (this.scanner.consume("."))
@@ -390,12 +387,7 @@ export class Parser
 		{
 			throw new Error(`Internal error NO_CHAR at position ${this.scanner.index}.`);
 		}
-		let literalPredicate = predicate.literal(this.scanner.token);
-		if (this.flags.has("i"))
-		{
-			literalPredicate = predicate.ignoreCase(literalPredicate);
-		}
-		return new Expr.Character(literalPredicate);
+		return new Expr.Character(predicate.literal(this.scanner.token), this.flags.has("i"));
 	}
 
 	private parseEscape(): Expr.Expression
@@ -459,23 +451,26 @@ export class Parser
 		else if (this.scanner.consume("c"))
 		{
 			this.scanner.expect(/[A-Za-z]/, "control character letter");
-			return new Expr.Character(predicate.literal(
-				String.fromCharCode(this.scanner.token.toUpperCase().charCodeAt(0) - 64)
-			));
+			return new Expr.Character(
+				predicate.literal(String.fromCharCode(this.scanner.token.toUpperCase().charCodeAt(0) - 64)),
+				this.flags.has("i")
+			);
 		}
 		else if (this.scanner.consume("x"))
 		{
 			this.scanner.expect(/[0-9A-Fa-f]{2}/, "2-letter hex code");
-			return new Expr.Character(predicate.literal(
-				String.fromCharCode(parseInt(this.scanner.token, 16))
-			));
+			return new Expr.Character(
+				predicate.literal(String.fromCharCode(parseInt(this.scanner.token, 16))),
+				this.flags.has("i")
+			);
 		}
 		else if (this.scanner.consume("u"))
 		{
 			this.scanner.expect(/[0-9A-Fa-f]{4}/, "4-letter hex code");
-			return new Expr.Character(predicate.literal(
-				String.fromCharCode(parseInt(this.scanner.token, 16))
-			));
+			return new Expr.Character(
+				predicate.literal(String.fromCharCode(parseInt(this.scanner.token, 16))),
+				this.flags.has("i")
+			);
 		}
 		else if (this.scanner.consume("k"))
 		{
@@ -557,7 +552,10 @@ export class Parser
 
 				// Parse a sequence containing an octal code first, then literals for the rest of the digits.
 				const atoms = [];
-				atoms.push(new Expr.Character(predicate.literal(String.fromCharCode(parseInt(octalMatch[1], 8) % 0x100))));
+				atoms.push(new Expr.Character(
+					predicate.literal(String.fromCharCode(parseInt(octalMatch[1], 8) % 0x100)),
+					this.flags.has("i")
+				));
 				for (const digit of octalMatch[2])
 				{
 					atoms.push(new Expr.Character(predicate.literal(digit)));
@@ -622,10 +620,6 @@ export class Parser
 			}
 		}
 		let classPredicate = predicate.class(predicates);
-		if (this.flags.has("i"))
-		{
-			classPredicate = predicate.ignoreCase(classPredicate);
-		}
 		if (negate)
 		{
 			classPredicate = predicate.negate(classPredicate);

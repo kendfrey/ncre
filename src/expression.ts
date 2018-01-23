@@ -276,14 +276,16 @@ export class Alternation implements Expression
 
 export class Character implements Expression
 {
-	public constructor(private readonly filter: (character: string) => boolean)
+	public constructor(
+		private readonly filter: (character: string) => boolean,
+		private readonly ignoreCase: boolean = false)
 	{
 
 	}
 
 	public match(state: State): {} | undefined
 	{
-		if (state.index < state.str.length && this.filter(state.str[state.index]))
+		if (state.index < state.str.length && this.testFilter(state.str[state.index]))
 		{
 			state.index++;
 			return {};
@@ -298,6 +300,18 @@ export class Character implements Expression
 	{
 		state.index--;
 		return;
+	}
+
+	private testFilter(character: string): boolean
+	{
+		if (this.ignoreCase)
+		{
+			return this.filter(character.toLowerCase()) || this.filter(character.toUpperCase());
+		}
+		else
+		{
+			return this.filter(character);
+		}
 	}
 }
 
