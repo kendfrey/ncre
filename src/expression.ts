@@ -17,6 +17,23 @@ export interface Expression
 	backtrack(state: State, token: Token): Token | undefined;
 }
 
+// This class is used as a placeholder for an expression that will be inserted after the parse.
+export class Proxy implements Expression
+{
+	// This gets populated after the parse, instead of in the constructor.
+	public expression: Expression;
+
+	public match(state: State): Token | undefined
+	{
+		return this.expression.match(state);
+	}
+
+	public backtrack(state: State, token: Token): Token | undefined
+	{
+		return this.expression.backtrack(state, token);
+	}
+}
+
 export class Sequence implements Expression
 {
 	public constructor(private readonly atoms: Expression[])
@@ -332,9 +349,12 @@ export class Reference implements Expression
 	// This gets populated after the parse, instead of in the constructor.
 	public group: CaptureGroup;
 
-	public constructor(private readonly ignoreCase: boolean)
+	public constructor(private readonly ignoreCase: boolean, group?: CaptureGroup)
 	{
-
+		if (group !== undefined)
+		{
+			this.group = group;
+		}
 	}
 
 	public match(state: State): number | undefined

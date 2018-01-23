@@ -481,6 +481,19 @@ export class Parser
 		{
 			return this.parseNamedBackReference();
 		}
+		else if (this.scanner.consume(/0[0-7]{1,2}/))
+		{
+			// Parse octal codes beginning with 0.
+			return new Expr.Character(predicate.literal(String.fromCharCode(parseInt(this.scanner.token, 8))));
+		}
+		else if (this.scanner.consume("0"))
+		{
+			return new Expr.Character(predicate.literal("\0"));
+		}
+		else if (this.scanner.consume(/[1-9]\d*/))
+		{
+			return this.parseBackReferenceOrOctalCode();
+		}
 		else
 		{
 			this.scanner.expect(/[[\\^$.|?*+(){}]/, "escape sequence");
@@ -516,6 +529,43 @@ export class Parser
 			}
 		});
 		return reference;
+	}
+
+	private parseBackReferenceOrOctalCode(): Expr.Proxy
+	{
+		const num = this.scanner.token;
+		const numIndex = this.scanner.index;
+		const proxy = new Expr.Proxy();
+		const ignoreCase = this.flags.has("i");
+		this.postParseActions.push(() =>
+		{
+			const group = this.groups.get(num);
+			if (group !== undefined)
+			{
+				// It's a back reference.
+				proxy.expression = new Expr.Reference(ignoreCase, group);
+			}
+			else
+			{
+				// It's an octal code, possibly followed by some literal digits.
+				const octalMatch = num.match(/^([0-7]{2,3})(.*)/);
+				if (octalMatch === null)
+				{
+					// It's not a valid octal code or a group number.
+					throw new SyntaxError(`Invalid group number ${num} at position ${numIndex}.`);
+				}
+
+				// Parse a sequence containing an octal code first, then literals for the rest of the digits.
+				const atoms = [];
+				atoms.push(new Expr.Character(predicate.literal(String.fromCharCode(parseInt(octalMatch[1], 8) % 0x100))));
+				for (const digit of octalMatch[2])
+				{
+					atoms.push(new Expr.Character(predicate.literal(digit)));
+				}
+				proxy.expression = new Expr.Sequence(atoms);
+			}
+		});
+		return proxy;
 	}
 
 	private parseClass(): Predicate
@@ -676,6 +726,14 @@ export class Parser
 		{
 			this.scanner.expect(/[0-9A-Fa-f]{4}/, "4-letter hex code");
 			return String.fromCharCode(parseInt(this.scanner.token, 16));
+		}
+		else if (this.scanner.consume(/[0-7]{2,3}/))
+		{
+			return String.fromCharCode(parseInt(this.scanner.token, 8) % 0x100);
+		}
+		else if (this.scanner.consume("0"))
+		{
+			return "\0";
 		}
 		else
 		{

@@ -40,20 +40,25 @@ suite("regex engine", () =>
 		testMatches("escape - \\e", "\\e+", "\x1Ba");
 		testMatches("form feed - \\f", "\\f+", "\fa");
 		testMatches("vertical tab - \\v", "\\v+", "\va");
+		testMatches("null character - \\0", "\\0+", "\0a");
 		testMatches("control character - \\c", "\\cJ+", "\na");
 		testMatches("hex - \\x", "\\x61\\x5F", "a_a");
 		testMatches("unicode hex - \\u", "\\u0061\\u2081", "a₁a");
+		testMatches("octal - \\nnn", "\\141\\060", "a0a");
+		testMatches("octal overflow - \\nnn", "\\141\\460", "a0a");
 
 		suite("back references", () =>
 		{
+			testMatches("indexed - \\n", "(a)(b)c\\2\\1", "abcba");
 			testMatches("named - \\k<>", "(a)(?<X>b)c\\k<X>\\k<1>", "abcba");
 			testMatches("named - \\k''", "(a)(?'X'b)c\\k'X'\\k'1'", "abcba");
-			testNoParse("nonexistent group", "(a)\\k<X>");
-			testNoMatches("uncaptured group", "(a)?\\k<1>", "bb");
-			testMatches("nested", "(a\\k<1>?)", "aaaaa");
-			testMatches("forward", "(?:\\k<1>?(a))+", "aaaaa");
-			testNoMatches("case sensitivity", "(a)\\k<1>", "aA");
-			testMatches("case insensitivity", "(a)\\k<1>", "aA", { flags: "i" });
+			testNoParse("nonexistent group", "(a)\\2");
+			testNoParse("nonexistent named group", "(a)\\k<X>");
+			testNoMatches("uncaptured group", "(a)?\\1", "bb");
+			testMatches("nested", "(a\\1?)", "aaaaa");
+			testMatches("forward", "(?:\\1?(a))+", "aaaaa");
+			testNoMatches("case sensitivity", "(a)\\1", "aA");
+			testMatches("case insensitivity", "(a)\\1", "aA", { flags: "i" });
 		});
 	});
 
@@ -133,9 +138,12 @@ suite("regex engine", () =>
 			testMatches("escape - \\e", "[\\e]+", "\x1Ba");
 			testMatches("form feed - \\f", "[\\f]+", "\fa");
 			testMatches("vertical tab - \\v", "[\\v]+", "\va");
+			testMatches("null character - \\0", "[\\0]+", "\0a");
 			testMatches("control character - \\c", "[\\cJ]+", "\na");
 			testMatches("hex - \\x", "[\\x61\\x5F]+", "a_a");
 			testMatches("unicode hex - \\u", "[\\u0061\\u2081]+", "a₁a");
+			testMatches("octal - \\nnn", "[\\141\\060]+", "a0a");
+			testMatches("octal overflow - \\nnn", "[\\141\\460]+", "a0a");
 		});
 	});
 

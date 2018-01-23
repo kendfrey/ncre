@@ -42,7 +42,8 @@
             }
         ],
         "no-empty-interface": false,
-        "no-void-expression": ["ignore-arrow-function-shorthand"]
+        "no-void-expression": ["ignore-arrow-function-shorthand"],
+        "cyclomatic-complexity": [true, 30]
     },
     "rulesDirectory": []
 }
