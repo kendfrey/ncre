@@ -1,4 +1,4 @@
-import { CaptureGroup, CaptureValue, State } from "./state";
+import { CaptureGroup, State } from "./state";
 
 interface Token
 {
@@ -15,6 +15,9 @@ export interface Expression
 
 	// This takes a token and tries to find the next possible match by backtracking.
 	backtrack(state: State, token: Token): Token | undefined;
+
+	// This converts the expression to right-to-left mode or vice versa.
+	invert(): void;
 }
 
 // This class is used as a placeholder for an expression that will be inserted after the parse.
@@ -31,6 +34,11 @@ export class Proxy implements Expression
 	public backtrack(state: State, token: Token): Token | undefined
 	{
 		return this.expression.backtrack(state, token);
+	}
+
+	public invert(): void
+	{
+		this.expression.invert();
 	}
 }
 
@@ -58,6 +66,12 @@ export class Sequence implements Expression
 		{
 			return undefined;
 		}
+	}
+
+	public invert(): void
+	{
+		this.atoms.reverse();
+		this.atoms.forEach(a => a.invert());
 	}
 
 	private matchInternal(state: State, tokens: Token[], startAt: number): Token[] | undefined
@@ -137,6 +151,11 @@ export class Repetition implements Expression
 			}
 		}
 		return this.backtrackInternal(state, tokens);
+	}
+
+	public invert(): void
+	{
+		this.atom.invert();
 	}
 
 	private matchInternal(state: State, tokens: Token[]): Token[] | undefined
@@ -272,6 +291,12 @@ export class Alternation implements Expression
 			return undefined;
 		}
 	}
+
+	public invert(): void
+	{
+		this.left.invert();
+		this.right.invert();
+	}
 }
 
 export class Character implements Expression
@@ -285,9 +310,9 @@ export class Character implements Expression
 
 	public match(state: State): {} | undefined
 	{
-		if (state.index < state.str.length && this.testFilter(state.str[state.index]))
+		if (!state.eos && this.testFilter(state.peek()))
 		{
-			state.index++;
+			state.advance();
 			return {};
 		}
 		else
@@ -298,8 +323,13 @@ export class Character implements Expression
 
 	public backtrack(state: State, token: {}): undefined
 	{
-		state.index--;
+		state.backtrack();
 		return;
+	}
+
+	public invert(): void
+	{
+		// Do nothing
 	}
 
 	private testFilter(character: string): boolean
@@ -329,7 +359,7 @@ export class Group implements Expression
 		if (token !== undefined)
 		{
 			// If a match is found, store it as a capture.
-			state.groups.get(this.group)!.push(new CaptureValue(state.str.substring(start, state.index), start));
+			state.pushCapture(this.group, start);
 			return { start, token };
 		}
 		else
@@ -342,19 +372,24 @@ export class Group implements Expression
 		: { start: number; token: Token } | undefined
 	{
 		// Remove the previous capture.
-		state.groups.get(this.group)!.pop();
+		state.popCapture(this.group);
 
 		const newToken = this.atom.backtrack(state, token);
 		if (newToken !== undefined)
 		{
 			// If a match is found, store it as a capture.
-			state.groups.get(this.group)!.push(new CaptureValue(state.str.substring(start, state.index), start));
+			state.pushCapture(this.group, start);
 			return { start, token: newToken };
 		}
 		else
 		{
 			return undefined;
 		}
+	}
+
+	public invert(): void
+	{
+		this.atom.invert();
 	}
 }
 
@@ -374,29 +409,28 @@ export class Reference implements Expression
 	public match(state: State): number | undefined
 	{
 		// Look up the string to be captured.
-		const captures = state.groups.get(this.group)!;
-		if (captures.length === 0)
+		const capture = state.peekCapture(this.group);
+		if (capture === undefined)
 		{
 			// If the group has no captures, fail.
 			return undefined;
 		}
-		const capture = captures[captures.length - 1].value;
 
 		let success;
 		if (this.ignoreCase)
 		{
 			// Look for the capture, ignoring case.
-			success = state.str.substr(state.index, capture.length).toLowerCase() === capture.toLowerCase();
+			success = state.peek(capture.length).toLowerCase() === capture.toLowerCase();
 		}
 		else
 		{
 			// Look for the capture.
-			success = state.str.substr(state.index, capture.length) === capture;
+			success = state.peek(capture.length) === capture;
 		}
 
 		if (success)
 		{
-			state.index += capture.length;
+			state.advance(capture.length);
 			return capture.length;
 		}
 		else
@@ -407,7 +441,12 @@ export class Reference implements Expression
 
 	public backtrack(state: State, token: number): undefined
 	{
-		state.index -= token;
+		state.backtrack(token);
 		return;
+	}
+
+	public invert(): void
+	{
+		// Do nothing
 	}
 }

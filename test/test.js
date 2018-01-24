@@ -165,6 +165,13 @@ suite("regex engine", () =>
 			testNoParse("missing flags", "(?)");
 		});
 	});
+
+	suite("right to left", () =>
+	{
+		testMatches("literal text", "ab?", "aab");
+		testMatches("repetition", "a+?b+", "baabb");
+		testMatches("back references", "\\1?(a)", "aaa");
+	});
 });
 
 suite("API", () =>
