@@ -1,5 +1,5 @@
 import * as Expr from "./expression";
-import { CaptureGroup } from "./state";
+import { CaptureGroup, State } from "./state";
 
 class Scanner
 {
@@ -255,6 +255,23 @@ export class Parser
 		{
 			// Parse non-capturing group
 			atom = this.parseRegex();
+			this.scanner.expect(")");
+		}
+		else if (this.scanner.consume(/\(\?([=!])/))
+		{
+			// Parse lookahead
+			const negate = this.scanner.match![1] === "!";
+			const expression = this.parseRegex();
+			atom = new Expr.Anchor(undefined, expression, (s: State, l: boolean, r: boolean): boolean => r !== negate);
+			this.scanner.expect(")");
+		}
+		else if (this.scanner.consume(/\(\?<([=!])/))
+		{
+			// Parse lookbehind
+			const negate = this.scanner.match![1] === "!";
+			const expression = this.parseRegex();
+			expression.invert();
+			atom = new Expr.Anchor(expression, undefined, (s: State, l: boolean, r: boolean): boolean => l !== negate);
 			this.scanner.expect(")");
 		}
 		else if (this.scanner.consume(/\(\?([<'])/))
@@ -538,7 +555,7 @@ export class Parser
 			if (group !== undefined)
 			{
 				// It's a back reference.
-				proxy.expression = new Expr.Reference(ignoreCase, group);
+				proxy.setExpression(new Expr.Reference(ignoreCase, group));
 			}
 			else
 			{
@@ -560,7 +577,7 @@ export class Parser
 				{
 					atoms.push(new Expr.Character(predicate.literal(digit)));
 				}
-				proxy.expression = new Expr.Sequence(atoms);
+				proxy.setExpression(new Expr.Sequence(atoms));
 			}
 		});
 		return proxy;

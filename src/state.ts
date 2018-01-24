@@ -18,6 +18,7 @@ export class State
 {
 	private currentIndex: number;
 	private groups: Map<CaptureGroup, CaptureValue[]>;
+	private stateStack: Array<{ index: number; direction: 1 | -1 }> = [];
 
 	private constructor(private readonly str: string, groups: CaptureGroup[], private direction: 1 | -1)
 	{
@@ -75,6 +76,19 @@ export class State
 		{
 			return this.currentIndex <= 0;
 		}
+	}
+
+	public startAnchor(direction: 1 | -1): void
+	{
+		// Save the index and direction, but not captures.
+		this.stateStack.push({ index: this.currentIndex, direction: this.direction });
+		this.direction = direction;
+	}
+
+	public endAnchor(): void
+	{
+		// Restore the index and direction from before the anchor.
+		({ index: this.currentIndex, direction: this.direction } = this.stateStack.pop()!);
 	}
 
 	public pushCapture(group: CaptureGroup, startIndex: number): void

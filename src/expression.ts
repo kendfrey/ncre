@@ -16,6 +16,9 @@ export interface Expression
 	// This takes a token and tries to find the next possible match by backtracking.
 	backtrack(state: State, token: Token): Token | undefined;
 
+	// This backtracks without trying to find another match.
+	discard(state: State, token: Token): void;
+
 	// This converts the expression to right-to-left mode or vice versa.
 	invert(): void;
 }
@@ -24,7 +27,8 @@ export interface Expression
 export class Proxy implements Expression
 {
 	// This gets populated after the parse, instead of in the constructor.
-	public expression: Expression;
+	private expression: Expression;
+	private inverted = false;
 
 	public match(state: State): Token | undefined
 	{
@@ -36,9 +40,24 @@ export class Proxy implements Expression
 		return this.expression.backtrack(state, token);
 	}
 
+	public discard(state: State, token: Token): void
+	{
+		this.expression.discard(state, token);
+	}
+
 	public invert(): void
 	{
-		this.expression.invert();
+		// This defers the inversion until the expression is set.
+		this.inverted = !this.inverted;
+	}
+
+	public setExpression(expression: Expression): void
+	{
+		this.expression = expression;
+		if (this.inverted)
+		{
+			this.expression.invert();
+		}
 	}
 }
 
@@ -65,6 +84,14 @@ export class Sequence implements Expression
 		else
 		{
 			return undefined;
+		}
+	}
+
+	public discard(state: State, tokens: Token[]): void
+	{
+		for (let i = this.atoms.length - 1; i >= 0; i--)
+		{
+			this.atoms[i].discard(state, tokens[i]);
 		}
 	}
 
@@ -151,6 +178,14 @@ export class Repetition implements Expression
 			}
 		}
 		return this.backtrackInternal(state, tokens);
+	}
+
+	public discard(state: State, tokens: Token[]): void
+	{
+		for (let i = tokens.length - 1; i >= 0; i--)
+		{
+			this.atom.discard(state, tokens[i]);
+		}
 	}
 
 	public invert(): void
@@ -292,6 +327,18 @@ export class Alternation implements Expression
 		}
 	}
 
+	public discard(state: State, { side, token }: { side: "left" | "right"; token: Token }): void
+	{
+		if (side === "left")
+		{
+			this.left.discard(state, token);
+		}
+		else
+		{
+			this.right.discard(state, token);
+		}
+	}
+
 	public invert(): void
 	{
 		this.left.invert();
@@ -325,6 +372,11 @@ export class Character implements Expression
 	{
 		state.backtrack();
 		return;
+	}
+
+	public discard(state: State, token: {}): void
+	{
+		state.backtrack();
 	}
 
 	public invert(): void
@@ -387,6 +439,13 @@ export class Group implements Expression
 		}
 	}
 
+	public discard(state: State, { token }: { token: Token }): void
+	{
+		// Remove the previous capture.
+		state.popCapture(this.group);
+		this.atom.discard(state, token);
+	}
+
 	public invert(): void
 	{
 		this.atom.invert();
@@ -443,6 +502,76 @@ export class Reference implements Expression
 	{
 		state.backtrack(token);
 		return;
+	}
+
+	public discard(state: State, token: number): void
+	{
+		state.backtrack(token);
+	}
+
+	public invert(): void
+	{
+		// Do nothing
+	}
+}
+
+export class Anchor implements Expression
+{
+	public constructor(
+		private readonly left: Expression | undefined,
+		private readonly right: Expression | undefined,
+		private readonly condition: (state: State, left: boolean, right: boolean) => boolean
+	)
+	{
+
+	}
+
+	public match(state: State): { left?: Token; right?: Token } | undefined
+	{
+		let leftToken;
+		let rightToken;
+		if (this.left !== undefined)
+		{
+			// If there is a lookbehind, evaluate it.
+			state.startAnchor(-1);
+			leftToken = this.left.match(state);
+			state.endAnchor();
+		}
+		if (this.right !== undefined)
+		{
+			// If there is a lookahead, evaluate it.
+			state.startAnchor(1);
+			rightToken = this.right.match(state);
+			state.endAnchor();
+		}
+
+		// Evaluate the condition for the anchor to match
+		if (this.condition(state, leftToken !== undefined, rightToken !== undefined))
+		{
+			return { left: leftToken, right: rightToken };
+		}
+		else
+		{
+			return undefined;
+		}
+	}
+
+	public backtrack(state: State, token: { left?: Token; right?: Token }): undefined
+	{
+		this.discard(state, token);
+		return;
+	}
+
+	public discard(state: State, token: { left?: Token; right?: Token }): void
+	{
+		if (token.left !== undefined)
+		{
+			this.left!.discard(state, token.left);
+		}
+		if (token.right !== undefined)
+		{
+			this.right!.discard(state, token.right);
+		}
 	}
 
 	public invert(): void

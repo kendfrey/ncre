@@ -147,6 +147,19 @@ suite("regex engine", () =>
 		});
 	});
 
+	suite("anchors", () =>
+	{
+		suite("lookaround", () =>
+		{
+			testMatches("lookahead - (?=)", "a(?=b)", "aabaa");
+			testMatches("negative lookahead - (?!)", "a(?!b)", "aabaa");
+			testMatches("lookbehind - (?<=)", "(?<=b)a", "aabaa");
+			testMatches("negative lookbehind - (?<!)", "(?<!b)a", "aabaa");
+			testMatches("variable length lookbehind", "(?<=ab+)c", "aabbcc");
+			testMatches("groups and back references", "(.).+(?<=(\\1))", "abcabc");
+		});
+	});
+
 	suite("flags", () =>
 	{
 		testMatches("case sensitivity", "a", "Aa");

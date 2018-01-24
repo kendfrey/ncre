@@ -43,7 +43,8 @@
         ],
         "no-empty-interface": false,
         "no-void-expression": ["ignore-arrow-function-shorthand"],
-        "cyclomatic-complexity": [true, 30]
+        "cyclomatic-complexity": [true, 30],
+        "no-use-before-declare": false
     },
     "rulesDirectory": []
 }
