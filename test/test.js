@@ -150,8 +150,13 @@ suite("regex engine", () =>
 	suite("anchors", () =>
 	{
 		testMatches("string start - ^", "^a", "aaa");
+		testMatches("string start - \\A", "\\Aa", "aaa");
 		testMatches("string end - $", "a$", "aaa");
-		testMatches("string end before newline", "a$", "aaa\n");
+		testMatches("string end - \\Z", "a\\Z", "aaa");
+		testMatches("string end - \\z", "a\\z", "aaa");
+		testMatches("string end before newline - $", "a$", "aaa\n");
+		testMatches("string end before newline - \\Z", "a\\Z", "aaa\n");
+		testNoMatches("string end only - \\z", "a\\z", "aaa\n");
 
 		suite("lookaround", () =>
 		{

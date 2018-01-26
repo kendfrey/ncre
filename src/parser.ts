@@ -180,6 +180,49 @@ const characterClass =
 	dot: predicate.negate(predicate.literal("\n")),
 };
 
+const anchor =
+{
+	// This is equivalent to (?<![^])
+	stringStart: new Expr.Anchor
+	(
+		new Expr.Character((): boolean => true),
+		undefined,
+		(s: State, l: boolean, r: boolean): boolean => !l
+	),
+	// This is equivalent to (?![^])
+	stringEnd: new Expr.Anchor
+	(
+		undefined,
+		new Expr.Character((): boolean => true),
+		(s: State, l: boolean, r: boolean): boolean => !r
+	),
+	// This is equivalent to (?!.|\n[^])
+	stringEndWithNewline: new Expr.Anchor
+	(
+		undefined,
+		new Expr.Alternation
+		(
+			new Expr.Character(characterClass.dot),
+			new Expr.Sequence([new Expr.Character(predicate.literal("\n")), new Expr.Character((): boolean => true)])
+		),
+		(s: State, l: boolean, r: boolean): boolean => !r
+	),
+	// This is equivalent to (?<!.)
+	lineStart: new Expr.Anchor
+	(
+		new Expr.Character(characterClass.dot),
+		undefined,
+		(s: State, l: boolean, r: boolean): boolean => !l
+	),
+	// This is equivalent to (?!.)
+	lineEnd: new Expr.Anchor
+	(
+		undefined,
+		new Expr.Character(characterClass.dot),
+		(s: State, l: boolean, r: boolean): boolean => !r
+	),
+};
+
 export class Parser
 {
 	private scanner: Scanner;
@@ -283,9 +326,11 @@ export class Parser
 			const name = this.scanner.token;
 			if (name.startsWith("0"))
 			{
-				throw new SyntaxError(
+				throw new SyntaxError
+				(
 					"Group index cannot begin with 0. " +
-					`Invalid group name at position ${nameIndex}.`);
+					`Invalid group name at position ${nameIndex}.`
+				);
 			}
 			this.scanner.expect(endDelim);
 			atom = new Expr.Group(this.parseRegex(), this.getGroup(name));
@@ -343,35 +388,12 @@ export class Parser
 		else if (this.scanner.consume("^"))
 		{
 			// Parse a string start anchor
-			// ^ is equivalent to (?<![^]) or (?<!.) in multi-line mode.
-			const anchorPredicate = this.flags.has("m") ? characterClass.dot : (): boolean => true;
-			atom = new Expr.Anchor(
-				new Expr.Character(anchorPredicate),
-				undefined,
-				(s: State, l: boolean, r: boolean): boolean => !l
-			);
+			atom = this.flags.has("m") ? anchor.lineStart : anchor.stringStart;
 		}
 		else if (this.scanner.consume("$"))
 		{
 			// Parse a string end anchor
-			// $ is equivalent to (?!.|\n[^]) or (?!.) in multi-line mode.
-			let anchor;
-			if (this.flags.has("m"))
-			{
-				anchor = new Expr.Character(characterClass.dot);
-			}
-			else
-			{
-				anchor = new Expr.Alternation(
-					new Expr.Character(characterClass.dot),
-					new Expr.Sequence([new Expr.Character(predicate.literal("\n")), new Expr.Character((): boolean => true)])
-				);
-			}
-			atom = new Expr.Anchor(
-				undefined,
-				anchor,
-				(s: State, l: boolean, r: boolean): boolean => !r
-			);
+			atom = this.flags.has("m") ? anchor.lineEnd : anchor.stringEndWithNewline;
 		}
 		else
 		{
@@ -413,9 +435,11 @@ export class Parser
 							max = parseInt(match[3]!);
 							if (max < min)
 							{
-								throw new SyntaxError(
+								throw new SyntaxError
+								(
 									"Maximum must not be less than minimum. " +
-									`Invalid repetition count at ${this.scanner.index - this.scanner.token.length}.`);
+									`Invalid repetition count at ${this.scanner.index - this.scanner.token.length}.`
+								);
 							}
 						}
 						else
@@ -501,7 +525,8 @@ export class Parser
 		else if (this.scanner.consume("c"))
 		{
 			this.scanner.expect(/[A-Za-z]/, "control character letter");
-			return new Expr.Character(
+			return new Expr.Character
+			(
 				predicate.literal(String.fromCharCode(this.scanner.token.toUpperCase().charCodeAt(0) - 64)),
 				this.flags.has("i")
 			);
@@ -509,7 +534,8 @@ export class Parser
 		else if (this.scanner.consume("x"))
 		{
 			this.scanner.expect(/[0-9A-Fa-f]{2}/, "2-letter hex code");
-			return new Expr.Character(
+			return new Expr.Character
+			(
 				predicate.literal(String.fromCharCode(parseInt(this.scanner.token, 16))),
 				this.flags.has("i")
 			);
@@ -517,7 +543,8 @@ export class Parser
 		else if (this.scanner.consume("u"))
 		{
 			this.scanner.expect(/[0-9A-Fa-f]{4}/, "4-letter hex code");
-			return new Expr.Character(
+			return new Expr.Character
+			(
 				predicate.literal(String.fromCharCode(parseInt(this.scanner.token, 16))),
 				this.flags.has("i")
 			);
@@ -539,6 +566,18 @@ export class Parser
 		{
 			return this.parseBackReferenceOrOctalCode();
 		}
+		else if (this.scanner.consume("A"))
+		{
+			return anchor.stringStart;
+		}
+		else if (this.scanner.consume("Z"))
+		{
+			return anchor.stringEndWithNewline;
+		}
+		else if (this.scanner.consume("z"))
+		{
+			return anchor.stringEnd;
+		}
 		else
 		{
 			this.scanner.expect(/[[\\^$.|?*+(){}]/, "escape sequence");
@@ -555,9 +594,11 @@ export class Parser
 		const name = this.scanner.token;
 		if (name.startsWith("0"))
 		{
-			throw new SyntaxError(
+			throw new SyntaxError
+			(
 				"Group index cannot begin with 0. " +
-				`Invalid group name at position ${nameIndex}.`);
+				`Invalid group name at position ${nameIndex}.`
+			);
 		}
 		this.scanner.expect(endDelim);
 		const reference = new Expr.Reference(this.flags.has("i"));
@@ -602,7 +643,8 @@ export class Parser
 
 				// Parse a sequence containing an octal code first, then literals for the rest of the digits.
 				const atoms = [];
-				atoms.push(new Expr.Character(
+				atoms.push(new Expr.Character
+				(
 					predicate.literal(String.fromCharCode(parseInt(octalMatch[1], 8) % 0x100)),
 					this.flags.has("i")
 				));
