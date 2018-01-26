@@ -42,6 +42,9 @@ namespace Ncre
 						case 'i':
 							options |= RegexOptions.IgnoreCase;
 							break;
+						case 'm':
+							options |= RegexOptions.Multiline;
+							break;
 						case 's':
 							options |= RegexOptions.Singleline;
 							break;

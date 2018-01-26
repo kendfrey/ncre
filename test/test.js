@@ -149,6 +149,10 @@ suite("regex engine", () =>
 
 	suite("anchors", () =>
 	{
+		testMatches("string start - ^", "^a", "aaa");
+		testMatches("string end - $", "a$", "aaa");
+		testMatches("string end before newline", "a$", "aaa\n");
+
 		suite("lookaround", () =>
 		{
 			testMatches("lookahead - (?=)", "a(?=b)", "aabaa");
@@ -167,6 +171,8 @@ suite("regex engine", () =>
 		testMatches("case insensitive escapes", "\\x41\\u0041\\101", "aaa", { flags: "i" });
 		testMatches("non-single-line mode", ".*", "a\r\nb\r\nc");
 		testMatches("single-line mode", ".*", "a\r\nb\r\nc", { flags: "s" });
+		testNoMatches("non-multi-line mode", "^\\w\\r?$", "a\r\nb\r\nc");
+		testMatches("multi-line mode", "^\\w\\r?$", "a\r\nb\r\nc", { flags: "m" });
 
 		suite("inline", () =>
 		{

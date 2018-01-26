@@ -340,6 +340,39 @@ export class Parser
 			// Parse dot (any character)
 			atom = new Expr.Character(this.flags.has("s") ? (): boolean => true : characterClass.dot);
 		}
+		else if (this.scanner.consume("^"))
+		{
+			// Parse a string start anchor
+			// ^ is equivalent to (?<![^]) or (?<!.) in multi-line mode.
+			const anchorPredicate = this.flags.has("m") ? characterClass.dot : (): boolean => true;
+			atom = new Expr.Anchor(
+				new Expr.Character(anchorPredicate),
+				undefined,
+				(s: State, l: boolean, r: boolean): boolean => !l
+			);
+		}
+		else if (this.scanner.consume("$"))
+		{
+			// Parse a string end anchor
+			// $ is equivalent to (?!.|\n[^]) or (?!.) in multi-line mode.
+			let anchor;
+			if (this.flags.has("m"))
+			{
+				anchor = new Expr.Character(characterClass.dot);
+			}
+			else
+			{
+				anchor = new Expr.Alternation(
+					new Expr.Character(characterClass.dot),
+					new Expr.Sequence([new Expr.Character(predicate.literal("\n")), new Expr.Character((): boolean => true)])
+				);
+			}
+			atom = new Expr.Anchor(
+				undefined,
+				anchor,
+				(s: State, l: boolean, r: boolean): boolean => !r
+			);
+		}
 		else
 		{
 			// Parse literal character
@@ -765,7 +798,7 @@ export class Parser
 
 	public static findInvalidFlag(flags: string): string | undefined
 	{
-		const match = flags.match(/[^is]/i);
+		const match = flags.match(/[^ims]/i);
 		if (match !== null)
 		{
 			return match[0];
