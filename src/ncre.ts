@@ -36,46 +36,52 @@ export class Regex
 
 	public match(input: string, startIndex?: number): Match
 	{
+		const stateAccessor = this.createState(input, startIndex);
 		// If no match was found, return empty.
-		return optional(this.getMatch(input, startIndex), { match: new Match(new Map()) }).match;
+		return optional(this.getMatch(stateAccessor), new Match(new Map()));
 	}
 
 	public matches(input: string, startIndex?: number): Match[]
 	{
+		const stateAccessor = this.createState(input, startIndex);
 		const matches = [];
 		for
 		(
-			let matchInfo = this.getMatch(input, startIndex);
-			matchInfo !== undefined;
-			matchInfo = this.getMatch(input, matchInfo.lastIndex)
+			let match = this.getMatch(stateAccessor);
+			match !== undefined;
+			match = this.getMatch(stateAccessor)
 		)
 		{
-			matches.push(matchInfo.match);
+			matches.push(match);
 
-			if (matchInfo.match.length === 0)
+			if (match.length === 0)
 			{
 				// If the last match was empty, check the next character, to avoid an infinite loop.
-				matchInfo.lastIndex += this.direction;
+				stateAccessor.state.advance();
 			}
 		}
 		return matches;
 	}
 
-	private getMatch(input: string, startIndex?: number): { match: Match; lastIndex: number } | undefined
+	private createState(input: string, startIndex?: number): StateAccessor
 	{
-		// Get the specified start index.
-		const intStartIndex = Math.floor(optional(startIndex, this.rightToLeft ? input.length : 0));
-		// Clamp the specified start index to the string's bounds.
-		const actualStartIndex = this.rightToLeft ? Math.min(input.length, intStartIndex) : Math.max(0, intStartIndex);
-		// Create the state.
-		const { state, ...stateAccessor }: StateAccessor = State.create(input, [...this.groups.values()], this.direction);
+		const stateAccessor = State.create(input, [...this.groups.values()], this.direction);
+		stateAccessor.reset(Math.floor(optional(startIndex, this.rightToLeft ? input.length : 0)));
+		return stateAccessor;
+	}
+
+	private getMatch(stateAccessor: StateAccessor): Match | undefined
+	{
+		// Clear the captures from any previous matches
+		stateAccessor.clearGroups();
 
 		// Loop through searching for a match.
-		for (let i = actualStartIndex; i <= input.length; i += this.direction)
+		for (; !stateAccessor.state.outOfBounds; stateAccessor.state.advance())
 		{
-			stateAccessor.reset(i);
-			if (this.ast.match(state) !== undefined)
+			const startIndex = stateAccessor.state.index;
+			if (this.ast.match(stateAccessor.state) !== undefined)
 			{
+				// If a match is found, return it.
 				const groups = new Map<string, Group>
 				(
 					[...stateAccessor.getGroups()].map
@@ -83,8 +89,12 @@ export class Regex
 						([g, cs]) => [g.name, new Group(g.name, cs.map(c => new Capture(c.index, c.value)))] as [string, Group]
 					)
 				);
-				const capture = new Capture(Math.min(i, state.index), stateAccessor.getString().substring(i, state.index));
-				return { match: new Match(groups, capture), lastIndex: state.index };
+				const capture = new Capture
+				(
+					Math.min(startIndex, stateAccessor.state.index),
+					stateAccessor.getString().substring(startIndex, stateAccessor.state.index)
+				);
+				return new Match(groups, capture);
 			}
 		}
 	}

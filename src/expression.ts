@@ -357,7 +357,7 @@ export class Character implements Expression
 
 	public match(state: State): {} | undefined
 	{
-		if (!state.eos && this.testFilter(state.peek()))
+		if (!state.endOfString && this.testFilter(state.peek()))
 		{
 			state.advance();
 			return {};
@@ -566,11 +566,15 @@ export class Anchor implements Expression
 	{
 		if (token.left !== undefined)
 		{
+			state.startAnchor(-1);
 			this.left!.discard(state, token.left);
+			state.endAnchor();
 		}
 		if (token.right !== undefined)
 		{
+			state.startAnchor(1);
 			this.right!.discard(state, token.right);
+			state.endAnchor();
 		}
 	}
 

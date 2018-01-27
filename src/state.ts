@@ -43,6 +43,13 @@ export class State
 			{
 				return state.groups;
 			},
+			clearGroups(): void
+			{
+				for (const group of state.groups.keys())
+				{
+					state.groups.set(group, []);
+				}
+			},
 		};
 	}
 
@@ -66,7 +73,7 @@ export class State
 		return this.str.substring(this.currentIndex, this.currentIndex + length * this.direction);
 	}
 
-	public get eos(): boolean
+	public get endOfString(): boolean
 	{
 		if (this.direction === 1)
 		{
@@ -75,6 +82,18 @@ export class State
 		else
 		{
 			return this.currentIndex <= 0;
+		}
+	}
+
+	public get outOfBounds(): boolean
+	{
+		if (this.direction === 1)
+		{
+			return this.currentIndex > this.str.length;
+		}
+		else
+		{
+			return this.currentIndex < 0;
 		}
 	}
 
@@ -120,4 +139,5 @@ export interface StateAccessor
 	reset(index: number): void;
 	getString(): string;
 	getGroups(): Map<CaptureGroup, CaptureValue[]>;
+	clearGroups(): void;
 }
