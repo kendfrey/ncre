@@ -221,6 +221,12 @@ const anchor =
 		new Expr.Character(characterClass.dot),
 		(s: State, l: boolean, r: boolean): boolean => !r
 	),
+	matchEnd: new Expr.Anchor
+	(
+		undefined,
+		undefined,
+		(s: State, l: boolean, r: boolean): boolean => s.index === s.previousMatchEnd
+	),
 };
 
 export class Parser
@@ -577,6 +583,10 @@ export class Parser
 		else if (this.scanner.consume("z"))
 		{
 			return anchor.stringEnd;
+		}
+		else if (this.scanner.consume("G"))
+		{
+			return anchor.matchEnd;
 		}
 		else
 		{

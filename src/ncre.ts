@@ -65,35 +65,32 @@ export class Regex
 
 	private createState(input: string, startIndex?: number): StateAccessor
 	{
-		const stateAccessor = State.create(input, [...this.groups.values()], this.direction);
-		stateAccessor.reset(Math.floor(optional(startIndex, this.rightToLeft ? input.length : 0)));
-		return stateAccessor;
+		const index = Math.floor(optional(startIndex, this.rightToLeft ? input.length : 0));
+		return State.create(input, [...this.groups.values()], index, this.direction);
 	}
 
 	private getMatch(stateAccessor: StateAccessor): Match | undefined
 	{
-		// Clear the captures from any previous matches
-		stateAccessor.clearGroups();
-
 		// Loop through searching for a match.
 		for (; !stateAccessor.state.outOfBounds; stateAccessor.state.advance())
 		{
-			const startIndex = stateAccessor.state.index;
+			const startIndex = stateAccessor.index;
 			if (this.ast.match(stateAccessor.state) !== undefined)
 			{
 				// If a match is found, return it.
 				const groups = new Map<string, Group>
 				(
-					[...stateAccessor.getGroups()].map
+					[...stateAccessor.groups].map
 					(
 						([g, cs]) => [g.name, new Group(g.name, cs.map(c => new Capture(c.index, c.value)))] as [string, Group]
 					)
 				);
 				const capture = new Capture
 				(
-					Math.min(startIndex, stateAccessor.state.index),
-					stateAccessor.getString().substring(startIndex, stateAccessor.state.index)
+					Math.min(startIndex, stateAccessor.index),
+					stateAccessor.str.substring(startIndex, stateAccessor.index)
 				);
+				stateAccessor.finishMatch();
 				return new Match(groups, capture);
 			}
 		}

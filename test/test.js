@@ -157,6 +157,7 @@ suite("regex engine", () =>
 		testMatches("string end before newline - $", "a$", "aaa\n");
 		testMatches("string end before newline - \\Z", "a\\Z", "aaa\n");
 		testNoMatches("string end only - \\z", "a\\z", "aaa\n");
+		testMatches("previous match - \\G", "\\Ga", "aaabaaa");
 
 		suite("lookaround", () =>
 		{

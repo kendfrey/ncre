@@ -16,35 +16,45 @@ export class CaptureValue
 
 export class State
 {
-	private currentIndex: number;
+	private previousMatchEndIndex: number;
 	private groups: Map<CaptureGroup, CaptureValue[]>;
 	private stateStack: Array<{ index: number; direction: 1 | -1 }> = [];
 
-	private constructor(private readonly str: string, groups: CaptureGroup[], private direction: 1 | -1)
+	private constructor(
+		private readonly str: string, groups: CaptureGroup[],
+		private currentIndex: number,
+		private direction: 1 | -1
+	)
 	{
 		this.groups = new Map(groups.map(g => [g, []] as [CaptureGroup, CaptureValue[]]));
+		this.previousMatchEndIndex = this.currentIndex;
 	}
 
-	public static create(str: string, groups: CaptureGroup[], direction: 1 | -1): StateAccessor
+	public static create(str: string, groups: CaptureGroup[], startIndex: number, direction: 1 | -1): StateAccessor
 	{
 		// This is to give the creator of the state access to the state's internals, and no one else.
-		const state = new State(str, groups, direction);
+		const state = new State(str, groups, startIndex, direction);
 		return {
 			state,
-			reset(index: number): void
+			get index(): number
+			{
+				return state.currentIndex;
+			},
+			set index(index: number)
 			{
 				state.currentIndex = index;
 			},
-			getString(): string
+			get str(): string
 			{
 				return state.str;
 			},
-			getGroups(): Map<CaptureGroup, CaptureValue[]>
+			get groups(): Map<CaptureGroup, CaptureValue[]>
 			{
 				return state.groups;
 			},
-			clearGroups(): void
+			finishMatch(): void
 			{
+				state.previousMatchEndIndex = state.currentIndex;
 				for (const group of state.groups.keys())
 				{
 					state.groups.set(group, []);
@@ -56,6 +66,11 @@ export class State
 	public get index(): number
 	{
 		return this.currentIndex;
+	}
+
+	public get previousMatchEnd(): number
+	{
+		return this.previousMatchEndIndex;
 	}
 
 	public advance(count: number = 1): void
@@ -136,8 +151,8 @@ export class State
 export interface StateAccessor
 {
 	state: State;
-	reset(index: number): void;
-	getString(): string;
-	getGroups(): Map<CaptureGroup, CaptureValue[]>;
-	clearGroups(): void;
+	index: number;
+	readonly str: string;
+	readonly groups: Map<CaptureGroup, CaptureValue[]>;
+	finishMatch(): void;
 }
