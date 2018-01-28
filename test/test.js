@@ -158,6 +158,8 @@ suite("regex engine", () =>
 		testMatches("string end before newline - \\Z", "a\\Z", "aaa\n");
 		testNoMatches("string end only - \\z", "a\\z", "aaa\n");
 		testMatches("previous match - \\G", "\\Ga", "aaabaaa");
+		testMatches("word boundary - \\b", "\\b.", "aba bab");
+		testMatches("non word boundary - \\B", "\\B.", "aba bab");
 
 		suite("lookaround", () =>
 		{

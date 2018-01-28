@@ -227,6 +227,18 @@ const anchor =
 		undefined,
 		(s: State, l: boolean, r: boolean): boolean => s.index === s.previousMatchEnd
 	),
+	wordBoundary: new Expr.Anchor
+	(
+		new Expr.Character(characterClass.word),
+		new Expr.Character(characterClass.word),
+		(s: State, l: boolean, r: boolean): boolean => l !== r
+	),
+	nonWordBoundary: new Expr.Anchor
+	(
+		new Expr.Character(characterClass.word),
+		new Expr.Character(characterClass.word),
+		(s: State, l: boolean, r: boolean): boolean => l === r
+	),
 };
 
 export class Parser
@@ -512,10 +524,6 @@ export class Parser
 		{
 			return new Expr.Character(predicate.literal("\x07"));
 		}
-		else if (this.scanner.consume("b"))
-		{
-			return new Expr.Character(predicate.literal("\b"));
-		}
 		else if (this.scanner.consume("e"))
 		{
 			return new Expr.Character(predicate.literal("\x1B"));
@@ -587,6 +595,14 @@ export class Parser
 		else if (this.scanner.consume("G"))
 		{
 			return anchor.matchEnd;
+		}
+		else if (this.scanner.consume("b"))
+		{
+			return anchor.wordBoundary;
+		}
+		else if (this.scanner.consume("B"))
+		{
+			return anchor.nonWordBoundary;
 		}
 		else
 		{
