@@ -95,6 +95,7 @@ suite("regex engine", () =>
 		testNoParse("mismatched parentheses - (", "(a");
 		testNoParse("mismatched parentheses - )", ")a");
 		testMatches("alternation - |", "(a*|b)*", "aabba");
+		testNoMatches("atomic - (?>)", "(?>ab?)b", "ab");
 
 		suite("capturing", () =>
 		{

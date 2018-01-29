@@ -318,6 +318,12 @@ export class Parser
 			atom = this.parseRegex();
 			this.scanner.expect(")");
 		}
+		else if (this.scanner.consume("(?>"))
+		{
+			// Parse atomic group
+			atom = new Expr.Atomic(this.parseRegex());
+			this.scanner.expect(")");
+		}
 		else if (this.scanner.consume(/\(\?([=!])/))
 		{
 			// Parse lookahead

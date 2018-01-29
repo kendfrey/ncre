@@ -583,3 +583,33 @@ export class Anchor implements Expression
 		// Do nothing
 	}
 }
+
+export class Atomic implements Expression
+{
+	public constructor(private readonly expression: Expression)
+	{
+
+	}
+
+	public match(state: State): Token | undefined
+	{
+		return this.expression.match(state);
+	}
+
+	public backtrack(state: State, token: Token): undefined
+	{
+		// Atomic groups never backtrack.
+		this.discard(state, token);
+		return;
+	}
+
+	public discard(state: State, token: Token): void
+	{
+		this.expression.discard(state, token);
+	}
+
+	public invert(): void
+	{
+		this.expression.invert();
+	}
+}
