@@ -1,4 +1,4 @@
-import { CaptureGroup, State } from "./state";
+import { CaptureGroup, CaptureValue, State } from "./state";
 
 interface Token
 {
@@ -449,6 +449,96 @@ export class Group implements Expression
 	public invert(): void
 	{
 		this.atom.invert();
+	}
+}
+
+export class BalancingGroup implements Expression
+{
+	// This gets populated after the parse, instead of in the constructor.
+	public popGroup: CaptureGroup;
+
+	public constructor(
+		private readonly atom: Expression,
+		private readonly pushGroup?: CaptureGroup
+	)
+	{
+
+	}
+
+	public match(state: State): { start: number; capture: CaptureValue; token: Token } | undefined
+	{
+		if (!state.hasCapture(this.popGroup))
+		{
+			// If no capture exists to balance with, fail the match.
+			return undefined;
+		}
+		const start = state.index;
+		const token = this.atom.match(state);
+		if (token !== undefined)
+		{
+			// If a match is found, pop the old capture and make a new capture with the text in between.
+			const capture = this.balanceCapture(state, start, token);
+			return { start, capture, token };
+		}
+		else
+		{
+			return undefined;
+		}
+	}
+
+	public backtrack(state: State, { start, capture, token }: { start: number; capture: CaptureValue; token: Token })
+		: { start: number; capture: CaptureValue; token: Token } | undefined
+	{
+		this.backtrackBalanceCapture(state, capture);
+		const newToken = this.atom.backtrack(state, token);
+		if (newToken !== undefined)
+		{
+			// If a match is found, pop the old capture and make a new capture with the text in between.
+			const newCapture = this.balanceCapture(state, start, newToken);
+			return { start, capture: newCapture, token: newToken };
+		}
+		else
+		{
+			return undefined;
+		}
+	}
+
+	public discard(state: State, { start, capture, token }: { start: number; capture: CaptureValue; token: Token }): void
+	{
+		this.backtrackBalanceCapture(state, capture);
+		this.atom.discard(state, token);
+	}
+
+	public invert(): void
+	{
+		this.atom.invert();
+	}
+
+	private balanceCapture(state: State, start: number, token: Token): CaptureValue
+	{
+		const capture = state.popCapture(this.popGroup);
+		if (this.pushGroup !== undefined)
+		{
+			// Take the middle two indices, to get either the text between the two matches, or the overlap of the matches.
+			const indices = [capture.index, capture.index + capture.value.length, start, state.index];
+			indices.sort((a, b) => a - b);
+			const [, startIndex, endIndex, ]: number[] = indices;
+
+			// Push the text as a new capture.
+			state.pushCapture(this.pushGroup, startIndex, endIndex);
+		}
+		return capture;
+	}
+
+	private backtrackBalanceCapture(state: State, capture: CaptureValue): void
+	{
+		if (this.pushGroup !== undefined)
+		{
+			// Remove the balancing capture.
+			state.popCapture(this.pushGroup);
+		}
+		// Restore the capture that was balanced with.
+		state.repushCapture(this.popGroup, capture);
 	}
 }
 

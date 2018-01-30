@@ -343,22 +343,40 @@ export class Parser
 		}
 		else if (this.scanner.consume(/\(\?([<'])/))
 		{
-			// Parse named capturing group
 			const endDelim = this.scanner.match![1] === "<" ? ">" : "'";
-			const nameIndex = this.scanner.index;
-			this.scanner.expect(/[_A-Za-z]\w*|\d+/, "group name or index");
-			const name = this.scanner.token;
-			if (name.startsWith("0"))
+
+			if (this.scanner.consume("-"))
 			{
-				throw new SyntaxError
-				(
-					"Group index cannot begin with 0. " +
-					`Invalid group name at position ${nameIndex}.`
-				);
+				// Parse subtracting group
+				const { name, nameIndex }: { name: string; nameIndex: number } = this.parseGroupName();
+				this.scanner.expect(endDelim);
+				const subtractingGroup = new Expr.BalancingGroup(this.parseRegex());
+				this.getGroupPostParse(name, nameIndex, g => { subtractingGroup.popGroup = g; });
+				atom = subtractingGroup;
+				this.scanner.expect(")");
 			}
-			this.scanner.expect(endDelim);
-			atom = new Expr.Group(this.parseRegex(), this.getGroup(name));
-			this.scanner.expect(")");
+			else
+			{
+				const { name }: { name: string } = this.parseGroupName();
+				if (this.scanner.consume("-"))
+				{
+					// Parse balancing group
+					const { name: balancingName, nameIndex: balancingNameIndex }: { name: string; nameIndex: number }
+						= this.parseGroupName();
+					this.scanner.expect(endDelim);
+					const balancingGroup = new Expr.BalancingGroup(this.parseRegex(), this.getGroup(name));
+					this.getGroupPostParse(balancingName, balancingNameIndex, g => { balancingGroup.popGroup = g; });
+					atom = balancingGroup;
+					this.scanner.expect(")");
+				}
+				else
+				{
+					// Parse named capturing group
+					this.scanner.expect(endDelim);
+					atom = new Expr.Group(this.parseRegex(), this.getGroup(name));
+					this.scanner.expect(")");
+				}
+			}
 		}
 		else if (this.scanner.consume("(?"))
 		{
@@ -621,31 +639,10 @@ export class Parser
 	{
 		this.scanner.expect(/[<']/, "< or '");
 		const endDelim = this.scanner.token === "<" ? ">" : "'";
-		const nameIndex = this.scanner.index;
-		this.scanner.expect(/[_A-Za-z]\w*|\d+/, "group name or index");
-		const name = this.scanner.token;
-		if (name.startsWith("0"))
-		{
-			throw new SyntaxError
-			(
-				"Group index cannot begin with 0. " +
-				`Invalid group name at position ${nameIndex}.`
-			);
-		}
+		const { name, nameIndex }: { name: string; nameIndex: number } = this.parseGroupName();
 		this.scanner.expect(endDelim);
 		const reference = new Expr.Reference(this.flags.has("i"));
-		this.postParseActions.push(() =>
-		{
-			const group = this.groups.get(name);
-			if (group !== undefined)
-			{
-				reference.group = group;
-			}
-			else
-			{
-				throw new SyntaxError(`Invalid group name ${name} at position ${nameIndex}.`);
-			}
-		});
+		this.getGroupPostParse(name, nameIndex, g => { reference.group = g; });
 		return reference;
 	}
 
@@ -655,37 +652,31 @@ export class Parser
 		const numIndex = this.scanner.index;
 		const proxy = new Expr.Proxy();
 		const ignoreCase = this.flags.has("i");
-		this.postParseActions.push(() =>
+		this.getGroupPostParse(num, numIndex, g => { proxy.setExpression(new Expr.Reference(ignoreCase, g)); }, () =>
 		{
-			const group = this.groups.get(num);
-			if (group !== undefined)
+			// If the group does not exist, it's an octal code, possibly followed by some literal digits.
+			const octalMatch = num.match(/^([0-7]{2,3})(.*)/);
+			if (octalMatch === null)
 			{
-				// It's a back reference.
-				proxy.setExpression(new Expr.Reference(ignoreCase, group));
+				// It's not a valid octal code or a group number.
+				return false;
 			}
-			else
-			{
-				// It's an octal code, possibly followed by some literal digits.
-				const octalMatch = num.match(/^([0-7]{2,3})(.*)/);
-				if (octalMatch === null)
-				{
-					// It's not a valid octal code or a group number.
-					throw new SyntaxError(`Invalid group number ${num} at position ${numIndex}.`);
-				}
 
-				// Parse a sequence containing an octal code first, then literals for the rest of the digits.
-				const atoms = [];
-				atoms.push(new Expr.Character
-				(
-					predicate.literal(String.fromCharCode(parseInt(octalMatch[1], 8) % 0x100)),
-					this.flags.has("i")
-				));
-				for (const digit of octalMatch[2])
-				{
-					atoms.push(new Expr.Character(predicate.literal(digit)));
-				}
-				proxy.setExpression(new Expr.Sequence(atoms));
+			// Parse a sequence containing an octal code first, then literals for the rest of the digits.
+			const atoms = [];
+			atoms.push(new Expr.Character
+			(
+				predicate.literal(String.fromCharCode(parseInt(octalMatch[1], 8) % 0x100)),
+				ignoreCase
+			));
+			for (const digit of octalMatch[2])
+			{
+				atoms.push(new Expr.Character(predicate.literal(digit)));
 			}
+			proxy.setExpression(new Expr.Sequence(atoms));
+
+			// The missing group has been handled as an octal code.
+			return true;
 		});
 		return proxy;
 	}
@@ -858,6 +849,45 @@ export class Parser
 			this.scanner.expect(/[\^\-\]\\]/, "escape sequence");
 			return this.scanner.token;
 		}
+	}
+
+	private parseGroupName(): { name: string; nameIndex: number }
+	{
+		const nameIndex = this.scanner.index;
+		this.scanner.expect(/[_A-Za-z]\w*|\d+/, "group name or index");
+		const name = this.scanner.token;
+		if (name.startsWith("0"))
+		{
+			throw new SyntaxError
+			(
+				"Group index cannot begin with 0. " +
+				`Invalid group name at position ${nameIndex}.`
+			);
+		}
+		return { name, nameIndex };
+	}
+
+	private getGroupPostParse(
+		name: string,
+		nameIndex: number,
+		success: (group: CaptureGroup) => void,
+		failure?: () => boolean
+	): void
+	{
+		this.postParseActions.push(() =>
+		{
+			const group = this.groups.get(name);
+			if (group !== undefined)
+			{
+				// If the group name exists, call the success callback.
+				success(group);
+			}
+			else if (failure === undefined || !failure())
+			{
+				// If the group name does not exist and the failure callback did not handle it, error.
+				throw new SyntaxError(`Invalid group name ${name} at position ${nameIndex}.`);
+			}
+		});
 	}
 
 	private checkFlags(flags: string): void

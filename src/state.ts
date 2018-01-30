@@ -125,11 +125,17 @@ export class State
 		({ index: this.currentIndex, direction: this.direction } = this.stateStack.pop()!);
 	}
 
-	public pushCapture(group: CaptureGroup, startIndex: number): void
+	public pushCapture(group: CaptureGroup, startIndex: number, endIndex: number = this.currentIndex): void
 	{
-		this.groups.get(group)!.push(
-			new CaptureValue(this.str.substring(startIndex, this.currentIndex), Math.min(startIndex, this.currentIndex))
+		this.groups.get(group)!.push
+		(
+			new CaptureValue(this.str.substring(startIndex, endIndex), Math.min(startIndex, endIndex))
 		);
+	}
+
+	public repushCapture(group: CaptureGroup, capture: CaptureValue): void
+	{
+		this.groups.get(group)!.push(capture);
 	}
 
 	public peekCapture(group: CaptureGroup): string | undefined
@@ -142,9 +148,14 @@ export class State
 		return captures[captures.length - 1].value;
 	}
 
-	public popCapture(group: CaptureGroup): void
+	public popCapture(group: CaptureGroup): CaptureValue
 	{
-		this.groups.get(group)!.pop();
+		return this.groups.get(group)!.pop()!;
+	}
+
+	public hasCapture(group: CaptureGroup): boolean
+	{
+		return this.groups.get(group)!.length > 0;
 	}
 }
 

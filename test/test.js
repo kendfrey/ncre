@@ -109,6 +109,14 @@ suite("regex engine", () =>
 			testNoParse("invalid names", "(?<1a>)");
 			testParse("underscored names", "(?<_1a>)");
 			testNoParse("invalid zero", "(?<0>)");
+
+			suite("balancing", () =>
+			{
+				testMatches("subtraction - (?<-X>)", "(?<A>a)+(?<-A>b)+", "aaab");
+				testMatches("balancing - (?<Y-X>)", "(?<A>a)+.+?(?<B-A>b)+", "aaaxyzbb");
+				testNoParse("nonexistent group", "(?<-A>b)", "b");
+				testNoMatches("uncaptured group", "(?<A>a)?(?<-A>b)", "b");
+			});
 		});
 	});
 
