@@ -109,6 +109,8 @@ suite("regex engine", () =>
 			testNoParse("invalid names", "(?<1a>)");
 			testParse("underscored names", "(?<_1a>)");
 			testNoParse("invalid zero", "(?<0>)");
+			testNoParse("invalid leading zero", "(?<01>)");
+			testParse("valid leading zero for existing group", "(?<01>)()");
 
 			suite("balancing", () =>
 			{
@@ -116,6 +118,10 @@ suite("regex engine", () =>
 				testMatches("balancing - (?<Y-X>)", "(?<A>a)+.+?(?<B-A>b)+", "aaaxyzbb");
 				testNoParse("nonexistent group", "(?<-A>b)", "b");
 				testNoMatches("uncaptured group", "(?<A>a)?(?<-A>b)", "b");
+				testNoParse("invalid zero", "(?<0-1>)()");
+				testNoParse("invalid leading zero", "(?<02-1>)()");
+				testParse("valid leading zero for existing group (capture group)", "(?<01-1>)()");
+				testParse("valid leading zero for existing group (subtracted group)", "(?<1-01>)");
 			});
 		});
 	});

@@ -399,9 +399,15 @@ export class Character implements Expression
 
 export class Group implements Expression
 {
-	public constructor(private readonly atom: Expression, private readonly group: CaptureGroup)
-	{
+	// This gets populated after the parse, instead of in the constructor.
+	public group: CaptureGroup;
 
+	public constructor(private readonly atom: Expression, group?: CaptureGroup)
+	{
+		if (group !== undefined)
+		{
+			this.group = group;
+		}
 	}
 
 	public match(state: State): { start: number; token: Token } | undefined
@@ -454,13 +460,11 @@ export class Group implements Expression
 
 export class BalancingGroup implements Expression
 {
-	// This gets populated after the parse, instead of in the constructor.
+	// These get populated after the parse, instead of in the constructor.
 	public popGroup: CaptureGroup;
+	public pushGroup: CaptureGroup | undefined;
 
-	public constructor(
-		private readonly atom: Expression,
-		private readonly pushGroup?: CaptureGroup
-	)
+	public constructor(private readonly atom: Expression)
 	{
 
 	}

@@ -357,14 +357,23 @@ export class Parser
 			}
 			else
 			{
-				const { name }: { name: string } = this.parseGroupName();
+				const { name, nameIndex }: { name: string; nameIndex: number } = this.parseGroupName();
 				if (this.scanner.consume("-"))
 				{
 					// Parse balancing group
 					const { name: balancingName, nameIndex: balancingNameIndex }: { name: string; nameIndex: number }
 						= this.parseGroupName();
 					this.scanner.expect(endDelim);
-					const balancingGroup = new Expr.BalancingGroup(this.parseRegex(), this.getGroup(name));
+					const balancingGroup = new Expr.BalancingGroup(this.parseRegex());
+					if (name.startsWith("0"))
+					{
+						// A group cannot be created with a leading zero, but it can refer to an existing group.
+						this.getGroupPostParse(name, nameIndex, g => { balancingGroup.pushGroup = g; });
+					}
+					else
+					{
+						balancingGroup.pushGroup = this.getGroup(name);
+					}
 					this.getGroupPostParse(balancingName, balancingNameIndex, g => { balancingGroup.popGroup = g; });
 					atom = balancingGroup;
 					this.scanner.expect(")");
@@ -373,7 +382,17 @@ export class Parser
 				{
 					// Parse named capturing group
 					this.scanner.expect(endDelim);
-					atom = new Expr.Group(this.parseRegex(), this.getGroup(name));
+					const group = new Expr.Group(this.parseRegex());
+					if (name.startsWith("0"))
+					{
+						// A group cannot be created with a leading zero, but it can refer to an existing group.
+						this.getGroupPostParse(name, nameIndex, g => { group.group = g; });
+					}
+					else
+					{
+						group.group = this.getGroup(name);
+					}
+					atom = group;
 					this.scanner.expect(")");
 				}
 			}
@@ -856,14 +875,6 @@ export class Parser
 		const nameIndex = this.scanner.index;
 		this.scanner.expect(/[_A-Za-z]\w*|\d+/, "group name or index");
 		const name = this.scanner.token;
-		if (name.startsWith("0"))
-		{
-			throw new SyntaxError
-			(
-				"Group index cannot begin with 0. " +
-				`Invalid group name at position ${nameIndex}.`
-			);
-		}
 		return { name, nameIndex };
 	}
 
@@ -876,7 +887,7 @@ export class Parser
 	{
 		this.postParseActions.push(() =>
 		{
-			const group = this.groups.get(name);
+			const group = this.groups.get(name.replace(/^0*/, ""));
 			if (group !== undefined)
 			{
 				// If the group name exists, call the success callback.
