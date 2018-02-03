@@ -124,6 +124,19 @@ suite("regex engine", () =>
 				testParse("valid leading zero for existing group (subtracted group)", "(?<1-01>)");
 			});
 		});
+
+		suite("conditional", () =>
+		{
+			testMatches("lookahead - (?(?=if)then|else)", "\\b(?(?=a)a+|\\d+)", "aaa 123 b123");
+			testMatches("negative lookahead - (?(?!if)then|else)", "\\b(?(?!\\d)a+|\\d+)", "aaa 123 b123");
+			testMatches("lookbehind - (?(?<=if)then|else)", "\\b(?(?<=-)\\d+|\\d)", "123 -123");
+			testMatches("negative lookbehind - (?(?<!if)then|else)", "\\b(?(?<!-)\\d+|\\d)", "123 -123");
+			testMatches("implicit lookahead - (?(if)then|else)", "\\b(?(a+)a+|\\d+)", "aaa 123 b123");
+			testMatches("implicit lookahead disambiguated from group name", "\\b(?(a)a+|\\d+)", "aaa 123 b123");
+			testNoParse("group index cannot be an implicit lookahead", "(?(1)a)", "aaa 123 b123");
+			testMatches("implicit lookahead matches regex direction", "(?(a)a|b)", "a", { rightToLeft: true });
+			testMatches("capture - (?(if)then|else)", "\\b(?<a>a)?(?(a)a*|\\w+)", "aaabbb bbbaaa");
+		});
 	});
 
 	suite("character classes", () =>

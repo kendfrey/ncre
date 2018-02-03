@@ -397,6 +397,110 @@ export class Parser
 				}
 			}
 		}
+		else if (this.scanner.consume("(?("))
+		{
+			// Parse conditional group
+			let anchorCondition;
+			let name: string | undefined;
+			let nameIndex: number | undefined;
+			let isImplicitLookahead = false;
+			let ignoreCase: boolean;
+			if (this.scanner.consume(/\?([=!])/))
+			{
+				// Condition is a lookahead
+				const negate = this.scanner.match![1] === "!";
+				const expression = this.parseRegex();
+				anchorCondition = new Expr.Anchor
+				(
+					undefined,
+					expression,
+					(s: State, l: boolean, r: boolean): boolean => r !== negate
+				);
+				this.scanner.expect(")");
+			}
+			else if (this.scanner.consume(/\?<([=!])/))
+			{
+				// Condition is a lookbehind
+				const negate = this.scanner.match![1] === "!";
+				const expression = this.parseRegex();
+				expression.invert();
+				anchorCondition = new Expr.Anchor
+				(
+					expression,
+					undefined,
+					(s: State, l: boolean, r: boolean): boolean => l !== negate
+				);
+				this.scanner.expect(")");
+			}
+			else if (this.scanner.peek(/\w+\)/))
+			{
+				// Condition may be a capture group or implicit lookahead
+				ignoreCase = this.flags.has("i");
+				({ name, nameIndex } = this.parseGroupName());
+				this.scanner.expect(")");
+			}
+			else
+			{
+				// Condition is an implicit lookahead
+				anchorCondition = new Expr.Anchor
+				(
+					undefined,
+					this.parseRegex(),
+					(s: State, l: boolean, r: boolean): boolean => l || r
+				);
+				isImplicitLookahead = true;
+				this.scanner.expect(")");
+			}
+
+			// Parse if/else expressions
+			const left = this.parseSequence();
+			let right;
+			if (this.scanner.consume("|"))
+			{
+				right = this.parseSequence();
+			}
+			else
+			{
+				// Missing right side is treated as an empty string
+				right = new Expr.Sequence([]);
+			}
+			const conditional = new Expr.Conditional(left, right);
+			if (anchorCondition !== undefined)
+			{
+				conditional.condition = anchorCondition;
+				conditional.isImplicitLookahead = isImplicitLookahead;
+			}
+			else
+			{
+				this.getGroupPostParse(name!, nameIndex!, g => { conditional.condition = g; }, () =>
+				{
+					if (/^\d+$/.test(name!))
+					{
+						// Numbers cannot be used as implicit lookaheads.
+						return false;
+					}
+
+					// Parse the name as a sequence of literal characters
+					const atoms = [];
+					for (const character of name!)
+					{
+						atoms.push(new Expr.Character(predicate.literal(character), ignoreCase));
+					}
+					conditional.condition = new Expr.Anchor
+					(
+						undefined,
+						new Expr.Sequence(atoms),
+						(s: State, l: boolean, r: boolean): boolean => l || r
+					);
+					conditional.isImplicitLookahead = true;
+
+					// The missing group has been handled as an implicit lookahead.
+					return true;
+				});
+			}
+			atom = conditional;
+			this.scanner.expect(")");
+		}
 		else if (this.scanner.consume("(?"))
 		{
 			// Parse flag modifiers

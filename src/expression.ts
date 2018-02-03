@@ -612,8 +612,8 @@ export class Reference implements Expression
 export class Anchor implements Expression
 {
 	public constructor(
-		private readonly left: Expression | undefined,
-		private readonly right: Expression | undefined,
+		private left: Expression | undefined,
+		private right: Expression | undefined,
 		private readonly condition: (state: State, left: boolean, right: boolean) => boolean
 	)
 	{
@@ -676,6 +676,23 @@ export class Anchor implements Expression
 	{
 		// Do nothing
 	}
+
+	public invertAnchor(): void
+	{
+		// Change the direction of the anchor.
+		const tmp = this.left;
+		this.left = this.right;
+		this.right = tmp;
+
+		if (this.left !== undefined)
+		{
+			this.left.invert();
+		}
+		if (this.right !== undefined)
+		{
+			this.right.invert();
+		}
+	}
 }
 
 export class Atomic implements Expression
@@ -705,5 +722,111 @@ export class Atomic implements Expression
 	public invert(): void
 	{
 		this.expression.invert();
+	}
+}
+
+export class Conditional implements Expression
+{
+	// These get populated after the parse, instead of in the constructor.
+	public condition: CaptureGroup | Anchor;
+	public isImplicitLookahead = false;
+
+	public constructor(private readonly left: Expression, private readonly right: Expression)
+	{
+
+	}
+
+	public match(state: State): { side: "left" | "right"; matchToken: Token; anchorToken?: Token } | undefined
+	{
+		// Evaluate the condition.
+		let condition;
+		let anchorToken;
+		if (this.condition instanceof CaptureGroup)
+		{
+			condition = state.hasCapture(this.condition);
+		}
+		else
+		{
+			anchorToken = this.condition.match(state);
+			condition = anchorToken !== undefined;
+		}
+
+		// Match the appropriate side.
+		const side: "left" | "right" = condition ? "left" : "right";
+		let matchToken;
+		if (condition)
+		{
+			matchToken = this.left.match(state);
+		}
+		else
+		{
+			matchToken = this.right.match(state);
+		}
+
+		return this.finishMatch(state, side, matchToken, anchorToken);
+	}
+
+	public backtrack(
+		state: State,
+		{ side, matchToken, anchorToken }: { side: "left" | "right"; matchToken: Token; anchorToken?: Token }
+	): { side: "left" | "right"; matchToken: Token; anchorToken?: Token } | undefined
+	{
+		let newMatchToken;
+		if (side === "left")
+		{
+			newMatchToken = this.left.backtrack(state, matchToken);
+		}
+		else
+		{
+			newMatchToken = this.right.backtrack(state, matchToken);
+		}
+
+		return this.finishMatch(state, side, newMatchToken, anchorToken);
+	}
+
+	public discard(
+		state: State,
+		{ side, matchToken, anchorToken }: { side: "left" | "right"; matchToken: Token; anchorToken?: Token }
+	): void
+	{
+		if (side === "left")
+		{
+			this.left.discard(state, matchToken);
+		}
+		else
+		{
+			this.right.discard(state, matchToken);
+		}
+
+		// Discard the anchor token.
+		this.finishMatch(state, side, undefined, anchorToken);
+	}
+
+	public invert(): void
+	{
+		this.left.invert();
+		this.right.invert();
+		if (this.isImplicitLookahead)
+		{
+			(this.condition as Anchor).invertAnchor();
+		}
+	}
+
+	private finishMatch(state: State, side: "left" | "right", matchToken?: Token, anchorToken?: Token)
+		: { side: "left" | "right"; matchToken: Token; anchorToken?: Token } | undefined
+	{
+		if (matchToken !== undefined)
+		{
+			return { side, matchToken, anchorToken };
+		}
+		else
+		{
+			// Before discarding, discard the anchor token.
+			if (anchorToken !== undefined)
+			{
+				(this.condition as Anchor).discard(state, anchorToken);
+			}
+			return undefined;
+		}
 	}
 }
