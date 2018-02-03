@@ -32,27 +32,33 @@ namespace Ncre
 		{
 			RegexOptions options = RegexOptions.None;
 			if (((IDictionary<string, object>)data).TryGetValue("options", out object dataOptionsObj)
-				&& dataOptionsObj is IDictionary <string, object> dataOptions
-				&& dataOptions.TryGetValue("flags", out object flags))
+				&& dataOptionsObj is IDictionary <string, object> dataOptions)
 			{
-				foreach (char flag in (flags as string).ToLower())
+				if (dataOptions.TryGetValue("rightToLeft", out object rightToLeft) && rightToLeft is true)
 				{
-					switch (flag)
+					options |= RegexOptions.RightToLeft;
+				}
+				if (dataOptions.TryGetValue("flags", out object flags))
+				{
+					foreach (char flag in (flags as string).ToLower())
 					{
-						case 'i':
-							options |= RegexOptions.IgnoreCase;
-							break;
-						case 'm':
-							options |= RegexOptions.Multiline;
-							break;
-						case 's':
-							options |= RegexOptions.Singleline;
-							break;
-						case 'x':
-							options |= RegexOptions.IgnorePatternWhitespace;
-							break;
-						default:
-							throw new ArgumentException($"Invalid flag {flag}.", "options");
+						switch (flag)
+						{
+							case 'i':
+								options |= RegexOptions.IgnoreCase;
+								break;
+							case 'm':
+								options |= RegexOptions.Multiline;
+								break;
+							case 's':
+								options |= RegexOptions.Singleline;
+								break;
+							case 'x':
+								options |= RegexOptions.IgnorePatternWhitespace;
+								break;
+							default:
+								throw new ArgumentException($"Invalid flag {flag}.", "options");
+						}
 					}
 				}
 			}

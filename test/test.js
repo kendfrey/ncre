@@ -228,9 +228,9 @@ suite("regex engine", () =>
 
 	suite("right to left", () =>
 	{
-		testMatches("literal text", "ab?", "aab");
-		testMatches("repetition", "a+?b+", "baabb");
-		testMatches("back references", "\\1?(a)", "aaa");
+		testMatches("literal text", "ab?", "aab", { rightToLeft: true });
+		testMatches("repetition", "a+?b+", "baabb", { rightToLeft: true });
+		testMatches("back references", "\\1?(a)", "aaa", { rightToLeft: true });
 	});
 });
 
