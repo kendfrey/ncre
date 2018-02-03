@@ -96,6 +96,7 @@ suite("regex engine", () =>
 		testNoParse("mismatched parentheses - )", ")a");
 		testMatches("alternation - |", "(a*|b)*", "aabba");
 		testNoMatches("atomic - (?>)", "(?>ab?)b", "ab");
+		testMatches("comment - (?#)", "a(?# This is a comment. )b", "ab")
 
 		suite("capturing", () =>
 		{
@@ -209,6 +210,10 @@ suite("regex engine", () =>
 		testMatches("single-line mode", ".*", "a\r\nb\r\nc", { flags: "s" });
 		testNoMatches("non-multi-line mode", "^\\w\\r?$", "a\r\nb\r\nc");
 		testMatches("multi-line mode", "^\\w\\r?$", "a\r\nb\r\nc", { flags: "m" });
+		testNoMatches("significant whitespace", "a b", "ab");
+		testMatches("ignored whitespace", "a b", "ab", { flags: "x" });
+		testMatches("line comments", "a # this is a comment. \nb", "ab", { flags: "x" });
+		testMatches("escape ignored whitespace", "a\\ b", "a b", { flags: "x" });
 
 		suite("inline", () =>
 		{

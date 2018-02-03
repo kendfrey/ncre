@@ -48,6 +48,9 @@ namespace Ncre
 						case 's':
 							options |= RegexOptions.Singleline;
 							break;
+						case 'x':
+							options |= RegexOptions.IgnorePatternWhitespace;
+							break;
 						default:
 							throw new ArgumentException($"Invalid flag {flag}.", "options");
 					}

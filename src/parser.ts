@@ -306,6 +306,8 @@ export class Parser
 	{
 		this.scanner.unexpect(/[*+?)]|{(\d+)(,(\d+)?)?}/);
 
+		this.parseIgnoredSyntax();
+
 		let atom: Expr.Expression;
 		if (this.scanner.consume("\\"))
 		{
@@ -397,7 +399,7 @@ export class Parser
 				}
 			}
 		}
-		else if (this.scanner.consume("(?("))
+		else if (this.scanner.consume(/\(\?\((?!#)/))
 		{
 			// Parse conditional group
 			let anchorCondition;
@@ -566,11 +568,16 @@ export class Parser
 			atom = this.parseLiteralCharacter();
 		}
 
+		this.parseIgnoredSyntax();
+
 		// Parse repetition modifiers
 		if (this.scanner.consume(/[*+?]|{(\d+)(,(\d+)?)?}/))
 		{
 			const repetition = this.scanner.token;
 			const match = this.scanner.match!;
+
+			this.parseIgnoredSyntax();
+
 			// Parse lazy modifier
 			const lazy = this.scanner.consume("?");
 			let min;
@@ -753,7 +760,7 @@ export class Parser
 		}
 		else
 		{
-			this.scanner.expect(/[[\\^$.|?*+(){}]/, "escape sequence");
+			this.scanner.expect(/[[\\^$.|?*+(){}\s]/, "escape sequence");
 			return new Expr.Character(predicate.literal(this.scanner.token));
 		}
 	}
@@ -1005,6 +1012,27 @@ export class Parser
 		});
 	}
 
+	private parseIgnoredSyntax(): void
+	{
+		this.parseComments();
+		if (this.flags.has("x"))
+		{
+			while (this.scanner.consume(/\s+|#.*\n/))
+			{
+				this.parseComments();
+			}
+		}
+	}
+
+	private parseComments(): void
+	{
+		while (this.scanner.consume("(?#"))
+		{
+			this.scanner.consume(/[^)]*/);
+			this.scanner.expect(")");
+		}
+	}
+
 	private checkFlags(flags: string): void
 	{
 		const invalidFlag = Parser.findInvalidFlag(flags);
@@ -1017,7 +1045,7 @@ export class Parser
 
 	public static findInvalidFlag(flags: string): string | undefined
 	{
-		const match = flags.match(/[^ims]/i);
+		const match = flags.match(/[^imsx]/i);
 		if (match !== null)
 		{
 			return match[0];
