@@ -214,6 +214,8 @@ suite("regex engine", () =>
 		testMatches("ignored whitespace", "a b", "ab", { flags: "x" });
 		testMatches("line comments", "a # this is a comment. \nb", "ab", { flags: "x" });
 		testMatches("escape ignored whitespace", "a\\ b", "a b", { flags: "x" });
+		testMatches("implicit captures", "(a)(?<2>b)", "ab");
+		testMatches("explicit captures", "(a)(?<2>b)", "ab", { flags: "n" });
 
 		suite("inline", () =>
 		{

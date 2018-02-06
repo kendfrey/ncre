@@ -535,11 +535,20 @@ export class Parser
 		}
 		else if (this.scanner.consume("("))
 		{
-			// Parse capturing group
-			const group = this.getGroup(this.curGroupIndex.toString());
-			this.curGroupIndex++;
-			atom = new Expr.Group(this.parseRegex(), group);
-			this.scanner.expect(")");
+			if (this.flags.has("n"))
+			{
+				// Parse non-capturing group
+				atom = this.parseRegex();
+				this.scanner.expect(")");
+			}
+			else
+			{
+				// Parse capturing group
+				const group = this.getGroup(this.curGroupIndex.toString());
+				this.curGroupIndex++;
+				atom = new Expr.Group(this.parseRegex(), group);
+				this.scanner.expect(")");
+			}
 		}
 		else if (this.scanner.consume("["))
 		{
@@ -1045,7 +1054,7 @@ export class Parser
 
 	public static findInvalidFlag(flags: string): string | undefined
 	{
-		const match = flags.match(/[^imsx]/i);
+		const match = flags.match(/[^imnsx]/i);
 		if (match !== null)
 		{
 			return match[0];

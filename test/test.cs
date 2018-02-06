@@ -50,6 +50,9 @@ namespace Ncre
 							case 'm':
 								options |= RegexOptions.Multiline;
 								break;
+							case 'n':
+								options |= RegexOptions.ExplicitCapture;
+								break;
 							case 's':
 								options |= RegexOptions.Singleline;
 								break;
