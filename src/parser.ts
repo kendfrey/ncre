@@ -399,7 +399,7 @@ export class Parser
 				}
 			}
 		}
-		else if (this.scanner.consume(/\(\?\((?!#)/))
+		else if (this.scanner.consume(/\(\?\((?!\?#)/))
 		{
 			// Parse conditional group
 			let anchorCondition;

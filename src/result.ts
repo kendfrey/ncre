@@ -1,3 +1,5 @@
+import { Regex } from "./ncre";
+
 export class Capture
 {
 	public index: number;
@@ -45,6 +47,8 @@ export class Group
 
 export class Match
 {
+	public static empty: Match = new Match();
+
 	public groups: Map<string, Group>;
 	public captures: Capture[];
 	public name: string;
@@ -53,7 +57,21 @@ export class Match
 	public length: number;
 	public value: string;
 
-	public constructor(groups: Map<string, Group>, capture?: Capture)
+	public constructor();
+	public constructor(
+		groups: Map<string, Group>,
+		capture: Capture,
+		regex: Regex,
+		input: string,
+		nextIndex: number
+	);
+	public constructor(
+		groups: Map<string, Group> = new Map(),
+		capture?: Capture,
+		private readonly regex?: Regex,
+		private readonly input?: string,
+		private readonly nextIndex?: number
+	)
 	{
 		const captures = capture !== undefined ? [capture] : [];
 		this.groups = groups.set("0", new Group("0", captures));
@@ -78,5 +96,17 @@ export class Match
 	public group(name: number | string): Group | undefined
 	{
 		return this.groups.get(typeof name === "number" ? name.toString() : name);
+	}
+
+	public nextMatch(): Match
+	{
+		if (this === Match.empty)
+		{
+			return Match.empty;
+		}
+		else
+		{
+			return this.regex!.match(this.input!, this.nextIndex);
+		}
 	}
 }

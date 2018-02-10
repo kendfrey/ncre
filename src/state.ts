@@ -44,6 +44,10 @@ export class State
 			{
 				state.currentIndex = index;
 			},
+			get direction(): 1 | -1
+			{
+				return state.direction;
+			},
 			get str(): string
 			{
 				return state.str;
@@ -163,6 +167,7 @@ export interface StateAccessor
 {
 	state: State;
 	index: number;
+	readonly direction: 1 | -1;
 	readonly str: string;
 	readonly groups: Map<CaptureGroup, CaptureValue[]>;
 	finishMatch(): void;

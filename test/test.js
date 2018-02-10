@@ -397,6 +397,36 @@ suite("API", () =>
 				assert.strictEqual(match.group("B"), undefined);
 			});
 		});
+		test("nextMatch()", () =>
+		{
+			let match = new ncre.Regex("a?").match("aab");
+			assert.ok(match);
+			assert.equal(match.success, true);
+			assert.equal(match.index, 0);
+			assert.equal(match.value, "a");
+
+			match = match.nextMatch();
+			assert.ok(match);
+			assert.equal(match.success, true);
+			assert.equal(match.index, 1);
+			assert.equal(match.value, "a");
+
+			match = match.nextMatch();
+			assert.ok(match);
+			assert.equal(match.success, true);
+			assert.equal(match.index, 2);
+			assert.equal(match.value, "");
+
+			match = match.nextMatch();
+			assert.ok(match);
+			assert.equal(match.success, true);
+			assert.equal(match.index, 3);
+			assert.equal(match.value, "");
+
+			match = match.nextMatch();
+			assert.ok(match);
+			assert.equal(match.success, false);
+		});
 	});
 });
 
@@ -436,8 +466,14 @@ function testNoMatches(feature, regex, input, options, only)
 
 function doMatches(regex, input, options, success, successText)
 {
-	const actual = new ncre.Regex(regex, options).matches(input);
+	let actual = new ncre.Regex(regex, options).matches(input);
 	const expected = dotnet.matches({ regex, input, options }, true);
+	// Restrict comparison to public API properties.
+	actual = actual.map(m =>
+	{
+		const { regex, input, nextIndex, ...rest } = m;
+		return rest;
+	});
 	// Edge deserializes Match.groups as an array, so convert it to a Map.
 	expected.forEach(m => m.groups = new Map(m.groups.map(g => [g.name, g])));
 	assert.deepEqual(actual, expected, "Matches are not equal.");

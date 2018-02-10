@@ -38,7 +38,7 @@ export class Regex
 	{
 		const stateAccessor = this.createState(input, startIndex);
 		// If no match was found, return empty.
-		return optional(this.getMatch(stateAccessor), new Match(new Map()));
+		return optional(this.getMatch(stateAccessor), Match.empty);
 	}
 
 	public matches(input: string, startIndex?: number): Match[]
@@ -91,7 +91,13 @@ export class Regex
 					stateAccessor.str.substring(startIndex, stateAccessor.index)
 				);
 				stateAccessor.finishMatch();
-				return new Match(groups, capture);
+				let nextIndex = stateAccessor.index;
+				if (capture.length === 0)
+				{
+					// If the last match was empty, check the next character, to avoid an infinite loop.
+					nextIndex += stateAccessor.direction;
+				}
+				return new Match(groups, capture, this, stateAccessor.str, nextIndex);
 			}
 		}
 	}
