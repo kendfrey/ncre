@@ -17,8 +17,8 @@ export class CaptureValue
 export class State
 {
 	private previousMatchEndIndex: number;
-	private groups: Map<CaptureGroup, CaptureValue[]>;
-	private stateStack: Array<{ index: number; direction: 1 | -1 }> = [];
+	private readonly groups: Map<CaptureGroup, CaptureValue[]>;
+	private readonly stateStack: Array<{ index: number; direction: 1 | -1 }> = [];
 
 	private constructor(
 		private readonly str: string, groups: CaptureGroup[],

@@ -4,7 +4,7 @@ import { CaptureGroup, State } from "./state";
 class Scanner
 {
 	public index = 0;
-	public token: string;
+	public token!: string;
 	public match: Array<string | undefined> | undefined;
 
 	public constructor(private readonly str: string)
@@ -80,11 +80,10 @@ class Scanner
 
 class Flags
 {
-	private stack: Array<Map<string, boolean>>;
+	private readonly stack: Array<Map<string, boolean>> = [];
 
 	public constructor(setFlags: string)
 	{
-		this.stack = [];
 		this.push();
 		this.set(setFlags, "");
 	}
@@ -243,11 +242,11 @@ const anchor =
 
 export class Parser
 {
-	private scanner: Scanner;
+	private readonly scanner: Scanner;
 	private curGroupIndex = 1;
-	private groups = new Map<string, CaptureGroup>();
-	private flags: Flags;
-	private postParseActions: Array<() => void> = [];
+	private readonly groups = new Map<string, CaptureGroup>();
+	private readonly flags: Flags;
+	private readonly postParseActions: Array<() => void> = [];
 
 	public constructor(regex: string, flags: string)
 	{

@@ -27,7 +27,7 @@ export interface Expression
 export class Proxy implements Expression
 {
 	// This gets populated after the parse, instead of in the constructor.
-	private expression: Expression;
+	private expression!: Expression;
 	private inverted = false;
 
 	public match(state: State): Token | undefined
@@ -400,7 +400,7 @@ export class Character implements Expression
 export class Group implements Expression
 {
 	// This gets populated after the parse, instead of in the constructor.
-	public group: CaptureGroup;
+	public group!: CaptureGroup;
 
 	public constructor(private readonly atom: Expression, group?: CaptureGroup)
 	{
@@ -461,7 +461,7 @@ export class Group implements Expression
 export class BalancingGroup implements Expression
 {
 	// These get populated after the parse, instead of in the constructor.
-	public popGroup: CaptureGroup;
+	public popGroup!: CaptureGroup;
 	public pushGroup: CaptureGroup | undefined;
 
 	public constructor(private readonly atom: Expression)
@@ -549,7 +549,7 @@ export class BalancingGroup implements Expression
 export class Reference implements Expression
 {
 	// This gets populated after the parse, instead of in the constructor.
-	public group: CaptureGroup;
+	public group!: CaptureGroup;
 
 	public constructor(private readonly ignoreCase: boolean, group?: CaptureGroup)
 	{
@@ -728,7 +728,7 @@ export class Atomic implements Expression
 export class Conditional implements Expression
 {
 	// These get populated after the parse, instead of in the constructor.
-	public condition: CaptureGroup | Anchor;
+	public condition!: CaptureGroup | Anchor;
 	public isImplicitLookahead = false;
 
 	public constructor(private readonly left: Expression, private readonly right: Expression)

@@ -9,7 +9,7 @@ test/test.dll: test/test.cs
 	csc /target:library /out:$@ $<
 
 lint: ts
-	tslint -p tsconfig.json
+	tslint -t verbose -p tsconfig.json
 
 ts:
 	tsc

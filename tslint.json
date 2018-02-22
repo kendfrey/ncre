@@ -45,7 +45,9 @@
         "no-void-expression": ["ignore-arrow-function-shorthand"],
         "cyclomatic-complexity": [true, 100],
         "no-use-before-declare": false,
-        "max-file-line-count": false
+        "max-file-line-count": false,
+        "newline-per-chained-call": false,
+        "object-literal-sort-keys": false
     },
     "rulesDirectory": []
 }
