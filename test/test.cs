@@ -28,6 +28,14 @@ namespace Ncre
 			return Task.FromResult<object>(regex.Matches(input).Cast<Match>().Select(m => new MatchDto(regex, m)));
 		}
 
+		public Task<object> Replace(dynamic data)
+		{
+			Regex regex = GetRegex(data);
+			string input = data.input;
+			string replacement = data.replacement;
+			return Task.FromResult<object>(regex.Replace(input, replacement));
+		}
+
 		private Regex GetRegex(dynamic data)
 		{
 			RegexOptions options = RegexOptions.None;

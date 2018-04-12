@@ -109,4 +109,9 @@ export class Match
 			return this.regex!.match(this.input!, this.nextIndex);
 		}
 	}
+
+	public result(replacement: string): string
+	{
+		return replacement;
+	}
 }

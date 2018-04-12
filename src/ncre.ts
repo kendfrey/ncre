@@ -63,6 +63,49 @@ export class Regex
 		return matches;
 	}
 
+	public replace(
+		input: string,
+		replacement: string | ((m: Match) => string),
+		count: number = Infinity,
+		startIndex?: number
+	): string
+	{
+		// Get the function to evaluate replacements.
+		let replacementFunc: (m: Match) => string;
+		if (typeof replacement === "string")
+		{
+			replacementFunc = (m: Match): string => m.result(replacement);
+		}
+		else
+		{
+			replacementFunc = replacement;
+		}
+
+		// Get at most <count> matches.
+		const matches = this.matches(input, startIndex);
+		matches.splice(count);
+
+		// Make sure the match list goes from left to right.
+		if (this.rightToLeft)
+		{
+			matches.reverse();
+		}
+
+		// Split the string up into replacements and the intermediate strings.
+		const substrings = [];
+		let index = 0;
+		for (const match of matches)
+		{
+			substrings.push(input.substring(index, match.index));
+			substrings.push(replacementFunc(match));
+			index = match.index + match.length;
+		}
+		substrings.push(input.substr(index));
+
+		// Re-concatenate the pieces.
+		return substrings.join("");
+	}
+
 	private createState(input: string, startIndex?: number): StateAccessor
 	{
 		const index = Math.floor(optional(startIndex, this.rightToLeft ? input.length : 0));

@@ -8,6 +8,7 @@ const dotnet =
 	parse: edge.func({ ...testClass, methodName: "Parse" }),
 	match: edge.func({ ...testClass, methodName: "Match" }),
 	matches: edge.func({ ...testClass, methodName: "Matches" }),
+	replace: edge.func({ ...testClass, methodName: "Replace" }),
 };
 // Pre-load the CLR to avoid affecting first test performance.
 dotnet.parse({ regex: "" }, true);
@@ -234,6 +235,11 @@ suite("regex engine", () =>
 		testMatches("repetition", "a+?b+", "baabb", { rightToLeft: true });
 		testMatches("back references", "\\1?(a)", "aaa", { rightToLeft: true });
 	});
+
+	suite("replacement", () =>
+	{
+		testReplace("literal text", "\\w+", "this is a test", "abc");
+	});
 });
 
 suite("API", () =>
@@ -319,6 +325,29 @@ suite("API", () =>
 				assert.strictEqual(matches[4].value, "");
 			});
 		});
+		suite("replace()", () =>
+		{
+			test("once", () =>
+			{
+				const result = new ncre.Regex("a").replace("abc", "xyz");
+				assert.strictEqual(result, "xyzbc");
+			});
+			test("multiple", () =>
+			{
+				const result = new ncre.Regex("a").replace("banana", "xyz");
+				assert.strictEqual(result, "bxyznxyznxyz");
+			});
+			test("limited", () =>
+			{
+				const result = new ncre.Regex("a").replace("banana", "xyz", 2);
+				assert.strictEqual(result, "bxyznxyzna");
+			});
+			test("custom function", () =>
+			{
+				const result = new ncre.Regex(".{2}").replace("banana", m => m.value.split("").reverse().join(""));
+				assert.strictEqual(result, "abanan");
+			});
+		});
 	});
 
 	suite("Match", () =>
@@ -360,6 +389,41 @@ suite("API", () =>
 			assert.ok(match);
 			assert.strictEqual(match.value, "de");
 		});
+		test("nextMatch()", () =>
+		{
+			let match = new ncre.Regex("a?").match("aab");
+			assert.ok(match);
+			assert.strictEqual(match.success, true);
+			assert.strictEqual(match.index, 0);
+			assert.strictEqual(match.value, "a");
+
+			match = match.nextMatch();
+			assert.ok(match);
+			assert.strictEqual(match.success, true);
+			assert.strictEqual(match.index, 1);
+			assert.strictEqual(match.value, "a");
+
+			match = match.nextMatch();
+			assert.ok(match);
+			assert.strictEqual(match.success, true);
+			assert.strictEqual(match.index, 2);
+			assert.strictEqual(match.value, "");
+
+			match = match.nextMatch();
+			assert.ok(match);
+			assert.strictEqual(match.success, true);
+			assert.strictEqual(match.index, 3);
+			assert.strictEqual(match.value, "");
+
+			match = match.nextMatch();
+			assert.ok(match);
+			assert.strictEqual(match.success, false);
+		});
+		test("result()", () =>
+		{
+			const result = new ncre.Regex("b").match("ab").result("c");
+			assert.strictEqual(result, "c");
+		});
 		suite("group()", () =>
 		{
 			test("numbered groups", () =>
@@ -397,36 +461,6 @@ suite("API", () =>
 				assert.strictEqual(match.group("B"), undefined);
 			});
 		});
-		test("nextMatch()", () =>
-		{
-			let match = new ncre.Regex("a?").match("aab");
-			assert.ok(match);
-			assert.equal(match.success, true);
-			assert.equal(match.index, 0);
-			assert.equal(match.value, "a");
-
-			match = match.nextMatch();
-			assert.ok(match);
-			assert.equal(match.success, true);
-			assert.equal(match.index, 1);
-			assert.equal(match.value, "a");
-
-			match = match.nextMatch();
-			assert.ok(match);
-			assert.equal(match.success, true);
-			assert.equal(match.index, 2);
-			assert.equal(match.value, "");
-
-			match = match.nextMatch();
-			assert.ok(match);
-			assert.equal(match.success, true);
-			assert.equal(match.index, 3);
-			assert.equal(match.value, "");
-
-			match = match.nextMatch();
-			assert.ok(match);
-			assert.equal(match.success, false);
-		});
 	});
 });
 
@@ -435,7 +469,7 @@ function testParse(feature, regex, options, only)
 	(only ? test.only : test)(feature, () =>
 	{
 		assert.doesNotThrow(() => new ncre.Regex(regex), "NCRE parsing threw an error.");
-		assert.doesNotThrow(() => dotnet.parse({ regex, options }), ".NET parsing threw an error.");
+		assert.doesNotThrow(() => dotnet.parse({ regex, options }, true), ".NET parsing threw an error.");
 	});
 }
 
@@ -444,7 +478,7 @@ function testNoParse(feature, regex, options, only)
 	(only ? test.only : test)(feature, () =>
 	{
 		assert.throws(() => new ncre.Regex(regex), "NCRE parsing did not throw an error.");
-		assert.throws(() => dotnet.parse({ regex, options }), ".NET parsing did not throw an error.");
+		assert.throws(() => dotnet.parse({ regex, options }, true), ".NET parsing did not throw an error.");
 	});
 }
 
@@ -461,6 +495,16 @@ function testNoMatches(feature, regex, input, options, only)
 	(only ? test.only : test)(feature, () =>
 	{
 		doMatches(regex, input, options, false, "Unexpected match found.");
+	});
+}
+
+function testReplace(feature, regex, input, replacement, options, only)
+{
+	(only ? test.only : test)(feature, () =>
+	{
+		const actual = new ncre.Regex(regex, options).replace(input, replacement);
+		const expected = dotnet.replace({ regex, input, replacement, options }, true);
+		assert.strictEqual(actual, expected);
 	});
 }
 
