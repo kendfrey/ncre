@@ -4,7 +4,7 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"taskName": "build",
+			"label": "build",
 			"type": "shell",
 			"command": "make",
 			"group": {
@@ -15,22 +15,24 @@
 				"owner": "tslint",
 				"fileLocation": "absolute",
 				"pattern": {
-					"regexp": "^(ERROR|WARNING): (.+?)\\[(\\d+, \\d+)\\]: (.+)$",
+					"regexp": "^(ERROR|WARNING): \\((.+?)\\) (.+?)\\[(\\d+), (\\d+)\\]: (.+)$",
 					"severity": 1,
-					"file": 2,
-					"location": 3,
-					"message": 4
+					"code": 2,
+					"file": 3,
+					"line": 4,
+					"column": 5,
+					"message": 6
 				}
 			}
 		},
 		{
-			"taskName": "clean",
+			"label": "clean",
 			"type": "shell",
 			"command": "make clean",
 			"problemMatcher": []
 		},
 		{
-			"taskName": "clean all",
+			"label": "clean all",
 			"type": "shell",
 			"command": "make clean-all",
 			"problemMatcher": []
