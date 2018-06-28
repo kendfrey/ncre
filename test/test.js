@@ -239,6 +239,21 @@ suite("regex engine", () =>
 	suite("replacement", () =>
 	{
 		testReplace("literal text", "\\w+", "this is a test", "abc");
+		testReplace("unused escape - $", "\\w+", "a", "a$b");
+		testReplace("literal escape - $$", "\\w+", "a", "a$$b");
+		testReplace("group - $n", "(a)(b(?<20>c))", "abc", "$0-$1-$2-$20-$10");
+		testReplace("group - ${n}", "a(b)", "ab", "${1}${2}");
+		testReplace("named group - ${}", "a(?<A>b)", "ab", "${A}");
+		testReplace("unmatched group", "(a)(b)?", "a", "$1-$2");
+		testReplace("whole match - $&", "bc", "abcd", "-$&-");
+
+		suite("last group", () =>
+		{
+			testReplace("last group - $+", "(a)(b)", "ab", "$+");
+			testReplace("missing last group - $+", "(a)(b)?", "a", "$+");
+			testReplace("last named group", "(?<A>a)(?<B>b)(?<A>c)", "abc", "$+");
+			testReplace("no last group", "ab", "ab", "$+");
+		});
 	});
 });
 

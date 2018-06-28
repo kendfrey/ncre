@@ -1,4 +1,5 @@
 import { Regex } from "./ncre";
+import { Scanner } from "./scanner";
 
 export class Capture
 {
@@ -112,6 +113,81 @@ export class Match
 
 	public result(replacement: string): string
 	{
-		return replacement;
+		const scanner = new Scanner(replacement);
+
+		// Read literal text
+		scanner.expect(/[^$]*/);
+		let result = scanner.token;
+
+		// Find escape sequences
+		while (scanner.consume("$"))
+		{
+			if (scanner.consume("$"))
+			{
+				// Escaped $
+				result += "$";
+			}
+			else if ((scanner.peek(/(\d+)/) || scanner.peek(/\{([_A-Za-z]\w*|\d+)\}/))
+				&& this.groups.has(scanner.match![1]!))
+			{
+				// Backreference
+				result += this.groups.get(scanner.match![1]!)!.value;
+				if (!scanner.consume(scanner.token))
+				{
+					throw new Error(`Internal error RECONSUME_FAILED at position ${scanner.index}.`);
+				}
+			}
+			else if (scanner.consume("&"))
+			{
+				// Entire match
+				result += this.value;
+			}
+			else if (scanner.consume("+"))
+			{
+				// Last match
+				let lastNumberedGroup = 0;
+				let lastNamedGroup;
+				for (const group of this.groups.keys())
+				{
+					if (/^\d+$/.test(group))
+					{
+						lastNumberedGroup = Math.max(lastNumberedGroup, Number(group));
+					}
+					else
+					{
+						lastNamedGroup = group;
+					}
+				}
+
+				let lastGroup;
+				if (lastNumberedGroup > 0)
+				{
+					// If there are numbered groups, pick the one with the highest index
+					lastGroup = String(lastNumberedGroup);
+				}
+				else if (lastNamedGroup !== undefined)
+				{
+					// Otherwise, take the last named group
+					lastGroup = lastNamedGroup;
+				}
+				else
+				{
+					// If there are no groups, take the entire match
+					lastGroup = "0";
+				}
+
+				result += this.groups.get(lastGroup)!.value;
+			}
+			else
+			{
+				// Unescaped literal $
+				result += "$";
+			}
+
+			// Read literal text
+			scanner.expect(/[^$]*/);
+			result += scanner.token;
+		}
+		return result;
 	}
 }
