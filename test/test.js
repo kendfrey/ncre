@@ -246,6 +246,9 @@ suite("regex engine", () =>
 		testReplace("named group - ${}", "a(?<A>b)", "ab", "${A}");
 		testReplace("unmatched group", "(a)(b)?", "a", "$1-$2");
 		testReplace("whole match - $&", "bc", "abcd", "-$&-");
+		testReplace("whole input - $_", "b", "abc", "-$_-");
+		testReplace("preceding input - $`", "b", "abc", "-$`-");
+		testReplace("following input - $'", "b", "abc", "-$'-");
 
 		suite("last group", () =>
 		{
@@ -438,6 +441,8 @@ suite("API", () =>
 		{
 			const result = new ncre.Regex("b").match("ab").result("c");
 			assert.strictEqual(result, "c");
+
+			assert.throws(() => ncre.Match.empty.result(""));
 		});
 		suite("group()", () =>
 		{

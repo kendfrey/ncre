@@ -101,7 +101,7 @@ export class Match
 
 	public nextMatch(): Match
 	{
-		if (this === Match.empty)
+		if (!this.success)
 		{
 			return Match.empty;
 		}
@@ -113,6 +113,11 @@ export class Match
 
 	public result(replacement: string): string
 	{
+		if (!this.success)
+		{
+			throw new Error("Cannot perform a replacement with a failed match.");
+		}
+
 		const scanner = new Scanner(replacement);
 
 		// Read literal text
@@ -177,6 +182,21 @@ export class Match
 				}
 
 				result += this.groups.get(lastGroup)!.value;
+			}
+			else if (scanner.consume("_"))
+			{
+				// Entire input string
+				result += this.input!;
+			}
+			else if (scanner.consume("`"))
+			{
+				// Preceding input string
+				result += this.input!.substr(0, this.index);
+			}
+			else if (scanner.consume("'"))
+			{
+				// Following input string
+				result += this.input!.substr(this.index + this.length);
 			}
 			else
 			{
