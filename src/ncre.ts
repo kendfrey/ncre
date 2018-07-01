@@ -66,10 +66,15 @@ export class Regex
 	public replace(
 		input: string,
 		replacement: string | ((m: Match) => string),
-		count: number = Infinity,
+		count: number = -1,
 		startIndex?: number
 	): string
 	{
+		if (count < -1)
+		{
+			throw new Error("Count cannot be less than -1.");
+		}
+
 		// Get the function to evaluate replacements.
 		let replacementFunc: (m: Match) => string;
 		if (typeof replacement === "string")
@@ -83,7 +88,10 @@ export class Regex
 
 		// Get at most <count> matches.
 		const matches = this.matches(input, startIndex);
-		matches.splice(count);
+		if (count >= 0)
+		{
+			matches.splice(count);
+		}
 
 		// Make sure the match list goes from left to right.
 		if (this.rightToLeft)

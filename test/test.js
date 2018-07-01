@@ -360,6 +360,16 @@ suite("API", () =>
 				const result = new ncre.Regex("a").replace("banana", "xyz", 2);
 				assert.strictEqual(result, "bxyznxyzna");
 			});
+			test("start index", () =>
+			{
+				const result = new ncre.Regex("a").replace("banana", "xyz", -1, 2);
+				assert.strictEqual(result, "banxyznxyz");
+			});
+			test("right to left", () =>
+			{
+				const result = new ncre.Regex("\\d", { rightToLeft: true }).replace("1a2b3c4d5e6f", "x", 2, 6);
+				assert.strictEqual(result, "1axbxc4d5e6f");
+			});
 			test("custom function", () =>
 			{
 				const result = new ncre.Regex(".{2}").replace("banana", m => m.value.split("").reverse().join(""));
