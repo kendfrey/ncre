@@ -114,6 +114,44 @@ export class Regex
 		return substrings.join("");
 	}
 
+	public split(
+		input: string,
+		count: number = 0,
+		startIndex?: number
+	): string[]
+	{
+		if (count < 0)
+		{
+			throw new Error("Count cannot be less than 0.");
+		}
+
+		// Get at most <count - 1> matches.
+		const matches = this.matches(input, startIndex);
+		if (count > 0)
+		{
+			matches.splice(count - 1);
+		}
+
+		// Make sure the match list goes from left to right.
+		if (this.rightToLeft)
+		{
+			matches.reverse();
+		}
+
+		// Split the string.
+		const substrings = [];
+		let index = 0;
+		for (const match of matches)
+		{
+			substrings.push(input.substring(index, match.index));
+			index = match.index + match.length;
+		}
+		substrings.push(input.substr(index));
+
+		// Return the result.
+		return substrings;
+	}
+
 	private createState(input: string, startIndex?: number): StateAccessor
 	{
 		const index = Math.floor(optional(startIndex, this.rightToLeft ? input.length : 0));

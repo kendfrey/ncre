@@ -376,6 +376,29 @@ suite("API", () =>
 				assert.strictEqual(result, "abanan");
 			});
 		});
+		suite("split()", () =>
+		{
+			test("simple", () =>
+			{
+				const result = new ncre.Regex("\\d+").split("123abc456def");
+				assert.deepStrictEqual(result, ["", "abc", "def"]);
+			});
+			test("limited", () =>
+			{
+				const result = new ncre.Regex("\\d+").split("123abc456def", 2);
+				assert.deepStrictEqual(result, ["", "abc456def"]);
+			});
+			test("start index", () =>
+			{
+				const result = new ncre.Regex("\\d+").split("123abc456def", 0, 3);
+				assert.deepStrictEqual(result, ["123abc", "def"]);
+			});
+			test("right to left", () =>
+			{
+				const result = new ncre.Regex("\\d", { rightToLeft: true }).split("1a2b3c4d5e6f", 3, 6);
+				assert.deepStrictEqual(result, ["1a", "b", "c4d5e6f"]);
+			});
+		});
 	});
 
 	suite("Match", () =>
