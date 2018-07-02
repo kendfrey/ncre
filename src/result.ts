@@ -57,6 +57,7 @@ export class Match
 	public index: number;
 	public length: number;
 	public value: string;
+	private readonly collapsedGroupList: string[] = [];
 
 	public constructor();
 	public constructor(
@@ -84,6 +85,22 @@ export class Match
 			this.index = capture.index;
 			this.length = capture.length;
 			this.value = capture.value;
+
+			// Sort the group list the way .NET does it, for future reference.
+			const numberedGroups = [...this.groups.keys()].filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b));
+			const namedGroups = [...this.groups.keys()].filter(k => !/^\d+$/.test(k));
+			for (let i = 0; numberedGroups.length > 0 && namedGroups.length > 0; i++)
+			{
+				if (numberedGroups[0] === i.toString())
+				{
+					this.collapsedGroupList.push(numberedGroups.shift()!);
+				}
+				else
+				{
+					this.collapsedGroupList.push(namedGroups.shift()!);
+				}
+			}
+			this.collapsedGroupList.push(...numberedGroups, ...namedGroups);
 		}
 		else
 		{
@@ -149,39 +166,7 @@ export class Match
 			}
 			else if (scanner.consume("+"))
 			{
-				// Last match
-				let lastNumberedGroup = 0;
-				let lastNamedGroup;
-				for (const group of this.groups.keys())
-				{
-					if (/^\d+$/.test(group))
-					{
-						lastNumberedGroup = Math.max(lastNumberedGroup, Number(group));
-					}
-					else
-					{
-						lastNamedGroup = group;
-					}
-				}
-
-				let lastGroup;
-				if (lastNumberedGroup > 0)
-				{
-					// If there are numbered groups, pick the one with the highest index
-					lastGroup = String(lastNumberedGroup);
-				}
-				else if (lastNamedGroup !== undefined)
-				{
-					// Otherwise, take the last named group
-					lastGroup = lastNamedGroup;
-				}
-				else
-				{
-					// If there are no groups, take the entire match
-					lastGroup = "0";
-				}
-
-				result += this.groups.get(lastGroup)!.value;
+				result += this.groups.get(this.collapsedGroupList[this.collapsedGroupList.length - 1])!.value;
 			}
 			else if (scanner.consume("_"))
 			{

@@ -256,6 +256,9 @@ suite("regex engine", () =>
 			testReplace("missing last group - $+", "(a)(b)?", "a", "$+");
 			testReplace("last named group", "(?<A>a)(?<B>b)(?<A>c)", "abc", "$+");
 			testReplace("no last group", "ab", "ab", "$+");
+			testReplace("mixed numbered and named groups 1", "(?<A>a)(?<2>b)(?<B>c)", "abc", "$+");
+			testReplace("mixed numbered and named groups 2", "(?<A>a)(?<3>b)(?<B>c)", "abc", "$+");
+			testReplace("mixed numbered and named groups 3", "(?<A>a)(?<10>b)(?<B>c)", "abc", "$+");
 		});
 	});
 });
@@ -568,7 +571,7 @@ function doMatches(regex, input, options, success, successText)
 	// Restrict comparison to public API properties.
 	actual = actual.map(m =>
 	{
-		const { regex, input, nextIndex, ...rest } = m;
+		const { regex, input, nextIndex, collapsedGroupList, ...rest } = m;
 		return rest;
 	});
 	// Edge deserializes Match.groups as an array, so convert it to a Map.
