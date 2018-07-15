@@ -23,6 +23,8 @@ export class State
 	private constructor(
 		private readonly str: string, groups: CaptureGroup[],
 		private currentIndex: number,
+		private readonly leftIndex: number,
+		private readonly rightIndex: number,
 		private direction: 1 | -1
 	)
 	{
@@ -30,10 +32,17 @@ export class State
 		this.previousMatchEndIndex = this.currentIndex;
 	}
 
-	public static create(str: string, groups: CaptureGroup[], startIndex: number, direction: 1 | -1): StateAccessor
+	public static create(
+		str: string,
+		groups: CaptureGroup[],
+		startIndex: number,
+		leftIndex: number,
+		rightIndex: number,
+		direction: 1 | -1
+	): StateAccessor
 	{
 		// This is to give the creator of the state access to the state's internals, and no one else.
-		const state = new State(str, groups, startIndex, direction);
+		const state = new State(str, groups, startIndex, leftIndex, rightIndex, direction);
 		return {
 			state,
 			get index(): number
@@ -96,11 +105,11 @@ export class State
 	{
 		if (this.direction === 1)
 		{
-			return this.currentIndex >= this.str.length;
+			return this.currentIndex >= this.rightIndex;
 		}
 		else
 		{
-			return this.currentIndex <= 0;
+			return this.currentIndex <= this.leftIndex;
 		}
 	}
 
@@ -108,11 +117,11 @@ export class State
 	{
 		if (this.direction === 1)
 		{
-			return this.currentIndex > this.str.length;
+			return this.currentIndex > this.rightIndex;
 		}
 		else
 		{
-			return this.currentIndex < 0;
+			return this.currentIndex < this.leftIndex;
 		}
 	}
 

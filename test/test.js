@@ -288,6 +288,27 @@ suite("API", () =>
 				assert.ok(match);
 				assert.strictEqual(match.success, false);
 			});
+			test("start index", () =>
+			{
+				const match = new ncre.Regex(".").match("abc", 1);
+				assert.ok(match);
+				assert.strictEqual(match.index, 1);
+			});
+			test("substring", () =>
+			{
+				const match = new ncre.Regex("(?<=(.*)).(?=(.*))").match("abcde", 1, 3);
+				assert.ok(match);
+				assert.strictEqual(match.index, 1);
+				assert.strictEqual(match.value, "b");
+				assert.strictEqual(match.group(1).value, "");
+				assert.strictEqual(match.group(2).value, "cd");
+			});
+			test("right to left", () =>
+			{
+				const match = new ncre.Regex("a", { rightToLeft: true }).match("aaaa", 1, 2);
+				assert.ok(match);
+				assert.strictEqual(match.index, 2);
+			});
 		});
 		suite("matches()", () =>
 		{
@@ -344,6 +365,26 @@ suite("API", () =>
 				assert.strictEqual(matches[4].success, true);
 				assert.strictEqual(matches[4].index, 5);
 				assert.strictEqual(matches[4].value, "");
+			});
+			test("start index", () =>
+			{
+				const matches = new ncre.Regex(".").matches("abc", 1);
+				assert.ok(matches);
+				assert.strictEqual(matches.length, 2);
+				assert.ok(matches[0]);
+				assert.strictEqual(matches[0].index, 1);
+				assert.ok(matches[1]);
+				assert.strictEqual(matches[1].index, 2);
+			});
+			test("right to left", () =>
+			{
+				const matches = new ncre.Regex("a", { rightToLeft: true }).matches("aaaa", 2);
+				assert.ok(matches);
+				assert.strictEqual(matches.length, 2);
+				assert.ok(matches[0]);
+				assert.strictEqual(matches[0].index, 1);
+				assert.ok(matches[1]);
+				assert.strictEqual(matches[1].index, 0);
 			});
 		});
 		suite("replace()", () =>

@@ -34,9 +34,9 @@ export class Regex
 		this.direction = this.rightToLeft ? -1 : 1;
 	}
 
-	public match(input: string, startIndex?: number): Match
+	public match(input: string, startIndex?: number, length?: number): Match
 	{
-		const stateAccessor = this.createState(input, startIndex);
+		const stateAccessor = this.createState(input, startIndex, length);
 		// If no match was found, return empty.
 		return optional(this.getMatch(stateAccessor), Match.empty);
 	}
@@ -152,10 +152,31 @@ export class Regex
 		return substrings;
 	}
 
-	private createState(input: string, startIndex?: number): StateAccessor
+	private createState(input: string, start?: number, length?: number): StateAccessor
 	{
-		const index = Math.floor(optional(startIndex, this.rightToLeft ? input.length : 0));
-		return State.create(input, [...this.groups.values()], index, this.direction);
+		let leftIndex = 0;
+		let rightIndex = input.length;
+		let startIndex;
+
+		if (start !== undefined)
+		{
+			if (length !== undefined)
+			{
+				leftIndex = start;
+				rightIndex = start + length;
+				startIndex = this.rightToLeft ? rightIndex : leftIndex;
+			}
+			else
+			{
+				startIndex = start;
+			}
+		}
+		else
+		{
+			startIndex = this.rightToLeft ? rightIndex : leftIndex;
+		}
+
+		return State.create(input, [...this.groups.values()], startIndex, leftIndex, rightIndex, this.direction);
 	}
 
 	private getMatch(stateAccessor: StateAccessor): Match | undefined
