@@ -34,6 +34,11 @@ export class Regex
 		this.direction = this.rightToLeft ? -1 : 1;
 	}
 
+	public isMatch(input: string, startIndex?: number): boolean
+	{
+		return this.match(input, startIndex).success;
+	}
+
 	public match(input: string, startIndex?: number, length?: number): Match
 	{
 		const stateAccessor = this.createState(input, startIndex, length);

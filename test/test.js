@@ -274,6 +274,25 @@ suite("API", () =>
 				assert.doesNotThrow(() => new ncre.Regex("a"));
 			});
 		});
+		suite("isMatch()", () =>
+		{
+			test("success", () =>
+			{
+				assert.strictEqual(new ncre.Regex("a").isMatch("a"), true);
+			});
+			test("failure", () =>
+			{
+				assert.strictEqual(new ncre.Regex("a").isMatch("b"), false);
+			});
+			test("start index", () =>
+			{
+				assert.strictEqual(new ncre.Regex("a").isMatch("ab", 1), false);
+			});
+			test("right to left", () =>
+			{
+				assert.strictEqual(new ncre.Regex("a", { rightToLeft: true }).isMatch("ab", 1), true);
+			});
+		});
 		suite("match()", () =>
 		{
 			test("success", () =>
