@@ -42,7 +42,7 @@ suite("regex engine", () =>
 		testMatches("form feed - \\f", "\\f+", "\fa");
 		testMatches("vertical tab - \\v", "\\v+", "\va");
 		testMatches("null character - \\0", "\\0+", "\0a");
-		testMatches("control character - \\c", "\\cJ+", "\na");
+		testMatches("control character - \\c", "\\c@+\\cj+", "\0\na");
 		testMatches("hex - \\x", "\\x61\\x5F", "a_a");
 		testMatches("unicode hex - \\u", "\\u0061\\u2081", "a₁a");
 		testMatches("octal - \\nnn", "\\141\\060", "a0a");
@@ -169,7 +169,7 @@ suite("regex engine", () =>
 			testMatches("form feed - \\f", "[\\f]+", "\fa");
 			testMatches("vertical tab - \\v", "[\\v]+", "\va");
 			testMatches("null character - \\0", "[\\0]+", "\0a");
-			testMatches("control character - \\c", "[\\cJ]+", "\na");
+			testMatches("control character - \\c", "[\\cj\\c@]+", "\0\na");
 			testMatches("hex - \\x", "[\\x61\\x5F]+", "a_a");
 			testMatches("unicode hex - \\u", "[\\u0061\\u2081]+", "a₁a");
 			testMatches("octal - \\nnn", "[\\141\\060]+", "a0a");
@@ -460,6 +460,42 @@ suite("API", () =>
 			{
 				const result = new ncre.Regex("\\d", { rightToLeft: true }).split("1a2b3c4d5e6f", 3, 6);
 				assert.deepStrictEqual(result, ["1a", "b", "c4d5e6f"]);
+			});
+		});
+		const unescapedASCII = "\b\t\n\f\r !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+		const escapedASCII = "\b\\t\\n\\f\\r\\ !\"\\#\\$%&'\\(\\)\\*\\+,-\\./0123456789:;<=>\\?@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\[\\\\]\\^_`abcdefghijklmnopqrstuvwxyz\\{\\|}~";
+		suite("escape()", () =>
+		{
+			test("ASCII", () =>
+			{
+				assert.strictEqual(ncre.Regex.escape(unescapedASCII), escapedASCII);
+			});
+		});
+		suite("unescape()", () =>
+		{
+			test("ASCII", () =>
+			{
+				assert.strictEqual(ncre.Regex.unescape(escapedASCII), unescapedASCII);
+			});
+			test("valid characters", () =>
+			{
+				const escaped = "\\\u0000\\\u0001\\\u0002\\\u0003\\\u0004\\\u0005\\\u0006\\\u0007\\\b\\\t\\\n\\\u000b\\\f\\\r\\\u000e\\\u000f\\\u0010\\\u0011\\\u0012\\\u0013\\\u0014\\\u0015\\\u0016\\\u0017\\\u0018\\\u0019\\\u001a\\\u001b\\\u001c\\\u001d\\\u001e\\\u001f\\ \\!\\\"\\#\\$\\%\\&\\'\\(\\)\\*\\+\\,\\-\\.\\/\\0\\1\\2\\3\\4\\5\\6\\789\\:\\;\\<\\=\\>\\?\\@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\[\\\\\\]\\^_\\`\\a\\bcd\\e\\fghijklm\\nopq\\rs\\tu\\vwxyz\\{\\|\\}\\~\\";
+				const unescaped = "\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\b\t\n\u000b\f\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f !\"#$%&'()*+,-./\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u000789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`\u0007\bcd\u001b\fghijklm\nopq\rs\tu\u000bwxyz{|}~";
+				assert.strictEqual(ncre.Regex.unescape(escaped), unescaped);
+			});
+			test("valid sequences", () =>
+			{
+				const escaped = "\\12\\x0b\\u000c\\cM";
+				const unescaped = "\u000a\u000b\u000c\u000d";
+				assert.strictEqual(ncre.Regex.unescape(escaped), unescaped);
+			});
+			test("invalid escapes", () =>
+			{
+				assert.throws(() => ncre.Regex.unescape("\\A"));
+				assert.throws(() => ncre.Regex.unescape("\\9"));
+				assert.throws(() => ncre.Regex.unescape("\\c0"));
+				assert.throws(() => ncre.Regex.unescape("\\x0"));
+				assert.throws(() => ncre.Regex.unescape("\\u0"));
 			});
 		});
 	});

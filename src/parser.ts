@@ -542,7 +542,7 @@ export class Parser
 								throw new SyntaxError
 								(
 									"Maximum must not be less than minimum. " +
-									`Invalid repetition count at ${this.scanner.index - this.scanner.token.length}.`
+									`Invalid repetition count at position ${this.scanner.index - this.scanner.token.length}.`
 								);
 							}
 						}
@@ -624,7 +624,7 @@ export class Parser
 		}
 		else if (this.scanner.consume("c"))
 		{
-			this.scanner.expect(/[A-Za-z]/, "control character letter");
+			this.scanner.expect(/[@-_a-z]/, "control character");
 			return new Expr.Character
 			(
 				predicate.literal(String.fromCharCode(this.scanner.token.toUpperCase().charCodeAt(0) - 64)),
@@ -885,7 +885,7 @@ export class Parser
 		}
 		else if (this.scanner.consume("c"))
 		{
-			this.scanner.expect(/[A-Za-z]/, "control character letter");
+			this.scanner.expect(/[@-_a-z]/, "control character");
 			return String.fromCharCode(this.scanner.token.toUpperCase().charCodeAt(0) - 64);
 		}
 		else if (this.scanner.consume("x"))

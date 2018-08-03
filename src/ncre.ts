@@ -34,6 +34,17 @@ export class Regex
 		this.direction = this.rightToLeft ? -1 : 1;
 	}
 
+	public static escape(str: string): string
+	{
+		const escaped = str
+			.replace(/\t/g, "\\t")
+			.replace(/\n/g, "\\n")
+			.replace(/\f/g, "\\f")
+			.replace(/\r/g, "\\r")
+			.replace(/[ #$()*+.?\[\]^{|]/g, "\\$&");
+		return escaped;
+	}
+
 	public isMatch(input: string, startIndex?: number): boolean
 	{
 		return this.match(input, startIndex).success;
@@ -155,6 +166,51 @@ export class Regex
 
 		// Return the result.
 		return substrings;
+	}
+
+	public static unescape(str: string): string
+	{
+		const unescaped = str
+			.replace(/\\t/g, "\t")
+			.replace(/\\n/g, "\n")
+			.replace(/\\f/g, "\f")
+			.replace(/\\r/g, "\r")
+			.replace(/\\a/g, "\u0007")
+			.replace(/\\b/g, "\b")
+			.replace(/\\e/g, "\u001b")
+			.replace(/\\f/g, "\f")
+			.replace(/\\v/g, "\u000b")
+			.replace(/\\([0-7]{1,3})/g, (m: string, n: string) => String.fromCharCode(parseInt(n, 8) % 0x100))
+			.replace(/\\c([@-_a-z]?)/g, (m: string, c: string, i: number) =>
+			{
+				if (c === "")
+				{
+					throw new SyntaxError(`Expected control character at position ${i + 2}.`);
+				}
+				return String.fromCharCode(c.toUpperCase().charCodeAt(0) - 64);
+			})
+			.replace(/\\x((?:[0-9A-Fa-f]{2})?)/g, (m: string, n: string, i: number) =>
+			{
+				if (n === "")
+				{
+					throw new SyntaxError(`Expected 2-letter hex code at position ${i + 2}.`);
+				}
+				return String.fromCharCode(parseInt(n, 16));
+			})
+			.replace(/\\u((?:[0-9A-Fa-f]{4})?)/g, (m: string, n: string, i: number) =>
+			{
+				if (n === "")
+				{
+					throw new SyntaxError(`Expected 4-letter hex code at position ${i + 2}.`);
+				}
+				return String.fromCharCode(parseInt(n, 16));
+			})
+			.replace(/\\[89A-Za-z]/g, (m: string, i: number) =>
+			{
+				throw new SyntaxError(`Invalid escape code at position ${i + 1}.`);
+			})
+			.replace(/\\([^]?)/g, "$1");
+		return unescaped;
 	}
 
 	private createState(input: string, start?: number, length?: number): StateAccessor
